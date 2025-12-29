@@ -275,6 +275,93 @@ def list_movies(
     console.print(table)
 
 
+@main.command("movies-search")
+@click.option("--query", type=str, help="Search string")
+@click.option("--region", type=str, help="Region code")
+@click.option("--release-date-start", type=str, help="YYYY-MM-DD")
+@click.option("--release-date-end", type=str, help="YYYY-MM-DD")
+@click.option("--type", "movie_type", type=str, help="Movie type filter")
+@click.option("--per-page", type=int, default=10, show_default=True)
+@click.option("--page", type=int, default=1, show_default=True)
+@click.option("--all", "list_all", is_flag=True, help="Stream all pages")
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=False,
+    help="Maximum items when using --all (0 = no limit)",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    default="rich",
+    show_default=True,
+    help="Output format",
+)
+@click.pass_context
+def movies_search(
+    ctx: click.Context,
+    query: str | None,
+    region: str | None,
+    release_date_start: str | None,
+    release_date_end: str | None,
+    movie_type: str | None,
+    per_page: int,
+    page: int,
+    list_all: bool,
+    limit: int,
+    fmt: str,
+) -> None:
+    """Search movies with advanced filters."""
+    client: CineamoClient = ctx.obj["client"]
+    params: dict[str, str | int] = {"per_page": per_page, "page": page}
+    if query:
+        params["query"] = query
+    if region:
+        params["region"] = region
+    if release_date_start:
+        params["releaseDateStart"] = release_date_start
+    if release_date_end:
+        params["releaseDateEnd"] = release_date_end
+    if movie_type:
+        params["type"] = movie_type
+
+    if list_all:
+        count = 0
+        rows: list[tuple[str, str, str, str]] = []
+        for m in client.stream_all("/movies", **params):
+            rows.append((str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", ""))))
+            count += 1
+            if limit and count >= limit:
+                break
+        if fmt.lower() == "json":
+            click.echo(json.dumps({"items": rows, "total": count}, ensure_ascii=False, indent=2))
+            return
+        table = Table(title=f"Movies search (total {count})", header_style="bold cyan", show_lines=False)
+        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+        table.add_column("Title", style="bold")
+        table.add_column("Release", style="green")
+        table.add_column("Region", style="yellow")
+        for r in rows:
+            table.add_row(*r)
+        console.print(table)
+        return
+
+    result = client.list_paginated("/movies", **params)
+    if fmt.lower() == "json":
+        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+        return
+    table = Table(title=f"Movies search page {result.page}", header_style="bold cyan", show_lines=False)
+    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+    table.add_column("Title", style="bold")
+    table.add_column("Release", style="green")
+    table.add_column("Region", style="yellow")
+    for m in result.items:
+        table.add_row(str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", "")))
+    console.print(table)
+
+
 @main.command("movie")
 @click.option("--id", "movie_id", type=int, required=True, help="Movie ID")
 @click.option(
