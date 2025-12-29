@@ -18,28 +18,47 @@ console = Console()
 @click.option(
     "--base-url",
     envvar="CINEAMO_BASE_URL",
-    default="https://api.cineamo.com",
+    default=None,
     help="API base URL",
 )
 @click.option(
     "--timeout",
     type=float,
-    default=15.0,
-    show_default=True,
-    help="Request timeout seconds",
+    default=None,
+    help="Request timeout seconds (default: 15.0)",
 )
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Quiet output")
 @click.pass_context
 def main(
-    ctx: click.Context, base_url: str, timeout: float, verbose: bool, quiet: bool
+    ctx: click.Context,
+    base_url: str | None,
+    timeout: float | None,
+    verbose: bool,
+    quiet: bool,
 ) -> None:
     """Cineamo API command-line tool."""
     # Load config and apply overrides
+    # Precedence: CLI flags > env vars > config file > defaults
     ctx.ensure_object(dict)
     cfg = _load_config()
-    eff_base = base_url or cfg.get("base_url") or "https://api.cineamo.com"
-    eff_timeout = timeout or float(cfg.get("timeout", 15.0))
+
+    # base_url precedence: --base-url flag/CINEAMO_BASE_URL env > config > default
+    if base_url is not None:
+        eff_base = base_url
+    elif "base_url" in cfg:
+        eff_base = cfg["base_url"]
+    else:
+        eff_base = "https://api.cineamo.com"
+
+    # timeout precedence: --timeout flag > config > default
+    if timeout is not None:
+        eff_timeout = timeout
+    elif "timeout" in cfg:
+        eff_timeout = float(cfg["timeout"])
+    else:
+        eff_timeout = 15.0
+
     ctx.obj["client"] = CineamoClient(base_url=eff_base, timeout=eff_timeout)
     ctx.obj["verbose"] = verbose
     ctx.obj["quiet"] = quiet
