@@ -45,11 +45,11 @@ def list_cinemas(ctx: click.Context, city: Optional[str], per_page: int, page: i
         click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
         return
 
-    table = Table(title=f"Cinemas page {result.page}")
-    table.add_column("ID", justify="right")
-    table.add_column("Name")
-    table.add_column("City")
-    table.add_column("Country")
+    table = Table(title=f"Cinemas page {result.page}", header_style="bold cyan", show_lines=False)
+    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+    table.add_column("Name", style="bold")
+    table.add_column("City", style="green")
+    table.add_column("Country", style="yellow")
     for c in result.items:
         table.add_row(str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", "")))
     console.print(table)
@@ -73,11 +73,11 @@ def list_movies(ctx: click.Context, query: Optional[str], per_page: int, page: i
         click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
         return
 
-    table = Table(title=f"Movies page {result.page}")
-    table.add_column("ID", justify="right")
-    table.add_column("Title")
-    table.add_column("Release")
-    table.add_column("Region")
+    table = Table(title=f"Movies page {result.page}", header_style="bold cyan", show_lines=False)
+    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+    table.add_column("Title", style="bold")
+    table.add_column("Release", style="green")
+    table.add_column("Region", style="yellow")
     for m in result.items:
         table.add_row(str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", "")))
     console.print(table)
@@ -89,4 +89,3 @@ def finalize(ctx: click.Context, *args, **kwargs) -> None:  # type: ignore[no-un
     client: CineamoClient = ctx.obj.get("client")
     if client:
         client.close()
-
