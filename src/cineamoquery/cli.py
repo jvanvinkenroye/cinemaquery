@@ -487,3 +487,26 @@ def config_get(key: str) -> None:
 def config_show() -> None:
     cfg = _load_config()
     click.echo(json.dumps(cfg, ensure_ascii=False, indent=2))
+
+
+@main.group()
+def completions() -> None:
+    """Generate shell completion scripts."""
+
+
+@completions.command("bash")
+def completions_bash() -> None:
+    """Output bash completion eval line."""
+    click.echo('eval "$( _CINEAMO_COMPLETE=bash_complete cineamo )"')
+
+
+@completions.command("zsh")
+def completions_zsh() -> None:
+    """Output zsh completion eval line."""
+    click.echo('eval "$( _CINEAMO_COMPLETE=zsh_complete cineamo )"')
+
+
+@completions.command("fish")
+def completions_fish() -> None:
+    """Output fish completion eval line."""
+    click.echo('eval ( env _CINEAMO_COMPLETE=fish_complete cineamo )')
