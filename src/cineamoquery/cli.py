@@ -394,3 +394,42 @@ def finalize(ctx: click.Context, *args, **kwargs) -> None:  # type: ignore[no-un
     client: CineamoClient = ctx.obj.get("client")
     if client:
         client.close()
+
+
+@main.command("get")
+@click.argument("path", type=str)
+@click.option("-p", "params", multiple=True, help="Query param key=value (repeat)")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["rich", "json"], case_sensitive=False),
+    default="json",
+    show_default=True,
+    help="Output format",
+)
+@click.pass_context
+def raw_get(ctx: click.Context, path: str, params: tuple[str, ...], fmt: str) -> None:
+    """Generic GET for any API path (starting with '/')."""
+    if not path.startswith("/"):
+        raise click.UsageError("path must start with '/'")
+    client: CineamoClient = ctx.obj["client"]
+    qp: dict[str, str] = {}
+    for p in params:
+        if "=" not in p:
+            raise click.UsageError("-p expects key=value")
+        k, v = p.split("=", 1)
+        qp[k] = v
+    data = client.get_json(path, **qp)
+    if fmt == "json":
+        click.echo(json.dumps(data, ensure_ascii=False, indent=2))
+        return
+    # simple rich key-value table where possible
+    if isinstance(data, dict):
+        table = Table(title=f"GET {path}", header_style="bold cyan")
+        table.add_column("Key", style="magenta", no_wrap=True)
+        table.add_column("Value")
+        for k, v in data.items():
+            table.add_row(str(k), str(v))
+        console.print(table)
+    else:
+        click.echo(json.dumps(data, ensure_ascii=False, indent=2))
