@@ -433,3 +433,57 @@ def raw_get(ctx: click.Context, path: str, params: tuple[str, ...], fmt: str) ->
         console.print(table)
     else:
         click.echo(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+@main.group()
+def config() -> None:
+    """Manage cineamoquery configuration."""
+
+
+def _config_path() -> str:
+    import os
+
+    base = os.path.join(os.path.expanduser("~"), ".config", "cineamoquery")
+    os.makedirs(base, exist_ok=True)
+    return os.path.join(base, "config.toml")
+
+
+def _load_config() -> dict[str, str]:
+    import tomllib
+    import os
+
+    path = _config_path()
+    if not os.path.exists(path):
+        return {}
+    with open(path, "rb") as f:
+        return tomllib.load(f)
+
+
+def _save_config(cfg: dict[str, str]) -> None:
+    import tomli_w
+
+    with open(_config_path(), "wb") as f:
+        f.write(tomli_w.dumps(cfg).encode())
+
+
+@config.command("set")
+@click.argument("key")
+@click.argument("value")
+def config_set(key: str, value: str) -> None:
+    cfg = _load_config()
+    cfg[key] = value
+    _save_config(cfg)
+    click.echo(f"Set {key}")
+
+
+@config.command("get")
+@click.argument("key")
+def config_get(key: str) -> None:
+    cfg = _load_config()
+    click.echo(cfg.get(key, ""))
+
+
+@config.command("show")
+def config_show() -> None:
+    cfg = _load_config()
+    click.echo(json.dumps(cfg, ensure_ascii=False, indent=2))
