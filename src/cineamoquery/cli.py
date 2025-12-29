@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
 
 import click
 import tomli_w
@@ -32,7 +31,9 @@ console = Console()
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Quiet output")
 @click.pass_context
-def main(ctx: click.Context, base_url: str, timeout: float, verbose: bool, quiet: bool) -> None:
+def main(
+    ctx: click.Context, base_url: str, timeout: float, verbose: bool, quiet: bool
+) -> None:
     """Cineamo API command-line tool."""
     # Load config and apply overrides
     ctx.ensure_object(dict)
@@ -86,12 +87,23 @@ def list_cinemas(
         _ps.pop("per_page", None)
         _ps.pop("page", None)
         for c in client.stream_all("/cinemas", per_page=per_page, **_ps):
-            rows.append((str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", ""))))
+            rows.append(
+                (
+                    str(c.get("id", "")),
+                    str(c.get("name", "")),
+                    str(c.get("city", "")),
+                    str(c.get("countryCode", "")),
+                )
+            )
             count += 1
             if limit and count >= limit:
                 break
         if fmt.lower() == "json":
-            click.echo(json.dumps({"items": rows, "total": count}, ensure_ascii=False, indent=2))
+            click.echo(
+                json.dumps(
+                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
+                )
+            )
             return
         table = Table(
             title=f"Cinemas (total {count})",
@@ -109,7 +121,17 @@ def list_cinemas(
 
     result = client.list_paginated("/cinemas", **params)
     if fmt.lower() == "json":
-        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+        click.echo(
+            json.dumps(
+                {
+                    "items": result.items,
+                    "page": result.page,
+                    "total": result.total_items,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
     table = Table(
         title=f"Cinemas page {result.page}", header_style="bold cyan", show_lines=False
@@ -119,7 +141,12 @@ def list_cinemas(
     table.add_column("City", style="green")
     table.add_column("Country", style="yellow")
     for c in result.items:
-        table.add_row(str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", "")))
+        table.add_row(
+            str(c.get("id", "")),
+            str(c.get("name", "")),
+            str(c.get("city", "")),
+            str(c.get("countryCode", "")),
+        )
     console.print(table)
 
 
@@ -156,7 +183,13 @@ def get_cinema(ctx: click.Context, cinema_id: int, fmt: str) -> None:
 @click.option("--per-page", type=int, default=10, show_default=True)
 @click.option("--page", type=int, default=1, show_default=True)
 @click.option("--all", "list_all", is_flag=True, help="Stream all pages")
-@click.option("--limit", type=int, default=0, show_default=False, help="Maximum items when using --all (0 = no limit)")
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=False,
+    help="Maximum items when using --all (0 = no limit)",
+)
 @click.option(
     "--format",
     "fmt",
@@ -193,14 +226,29 @@ def cinemas_near(
         _ps.pop("per_page", None)
         _ps.pop("page", None)
         for c in client.stream_all("/cinemas", per_page=per_page, **_ps):
-            rows.append((str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", ""))))
+            rows.append(
+                (
+                    str(c.get("id", "")),
+                    str(c.get("name", "")),
+                    str(c.get("city", "")),
+                    str(c.get("countryCode", "")),
+                )
+            )
             count += 1
             if limit and count >= limit:
                 break
         if fmt.lower() == "json":
-            click.echo(json.dumps({"items": rows, "total": count}, ensure_ascii=False, indent=2))
+            click.echo(
+                json.dumps(
+                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
+                )
+            )
             return
-        table = Table(title=f"Cinemas near ({lat},{lon}) total {count}", header_style="bold cyan", show_lines=False)
+        table = Table(
+            title=f"Cinemas near ({lat},{lon}) total {count}",
+            header_style="bold cyan",
+            show_lines=False,
+        )
         table.add_column("ID", justify="right", style="magenta", no_wrap=True)
         table.add_column("Name", style="bold")
         table.add_column("City", style="green")
@@ -212,15 +260,34 @@ def cinemas_near(
 
     result = client.list_paginated("/cinemas", **params)
     if fmt.lower() == "json":
-        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+        click.echo(
+            json.dumps(
+                {
+                    "items": result.items,
+                    "page": result.page,
+                    "total": result.total_items,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
-    table = Table(title=f"Cinemas near ({lat},{lon}) page {result.page}", header_style="bold cyan", show_lines=False)
+    table = Table(
+        title=f"Cinemas near ({lat},{lon}) page {result.page}",
+        header_style="bold cyan",
+        show_lines=False,
+    )
     table.add_column("ID", justify="right", style="magenta", no_wrap=True)
     table.add_column("Name", style="bold")
     table.add_column("City", style="green")
     table.add_column("Country", style="yellow")
     for c in result.items:
-        table.add_row(str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", "")))
+        table.add_row(
+            str(c.get("id", "")),
+            str(c.get("name", "")),
+            str(c.get("city", "")),
+            str(c.get("countryCode", "")),
+        )
     console.print(table)
 
 
@@ -278,7 +345,11 @@ def list_movies(
             if limit and count >= limit:
                 break
         if fmt.lower() == "json":
-            click.echo(json.dumps({"items": rows, "total": count}, ensure_ascii=False, indent=2))
+            click.echo(
+                json.dumps(
+                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
+                )
+            )
             return
         table = Table(
             title=f"Movies (total {count})",
@@ -296,7 +367,17 @@ def list_movies(
 
     result = client.list_paginated("/movies", **params)
     if fmt.lower() == "json":
-        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+        click.echo(
+            json.dumps(
+                {
+                    "items": result.items,
+                    "page": result.page,
+                    "total": result.total_items,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
     table = Table(
         title=f"Movies page {result.page}", header_style="bold cyan", show_lines=False
@@ -306,7 +387,127 @@ def list_movies(
     table.add_column("Release", style="green")
     table.add_column("Region", style="yellow")
     for m in result.items:
-        table.add_row(str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", "")))
+        table.add_row(
+            str(m.get("id", "")),
+            str(m.get("title", "")),
+            str(m.get("releaseDate", "")),
+            str(m.get("region", "")),
+        )
+    console.print(table)
+
+
+@main.command("cinema-movies")
+@click.option("--cinema-id", type=int, required=True, help="Cinema ID")
+@click.option("--query", type=str, help="Search string")
+@click.option("--region", type=str, help="Region code")
+@click.option("--per-page", type=int, default=10, show_default=True)
+@click.option("--page", type=int, default=1, show_default=True)
+@click.option("--all", "list_all", is_flag=True, help="Stream all pages")
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=False,
+    help="Maximum items when using --all (0 = no limit)",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    default="rich",
+    show_default=True,
+    help="Output format",
+)
+@click.pass_context
+def cinema_movies(
+    ctx: click.Context,
+    cinema_id: int,
+    query: str | None,
+    region: str | None,
+    per_page: int,
+    page: int,
+    list_all: bool,
+    limit: int,
+    fmt: str,
+) -> None:
+    """List movies for a given cinema."""
+    client: CineamoClient = ctx.obj["client"]
+    path = f"/cinemas/{cinema_id}/movies"
+    params: dict[str, str | int] = {"per_page": per_page, "page": page}
+    if query:
+        params["query"] = query
+    if region:
+        params["region"] = region
+
+    if list_all:
+        count = 0
+        rows: list[tuple[str, str, str, str]] = []
+        _ps = dict(params)
+        _ps.pop("per_page", None)
+        _ps.pop("page", None)
+        for m in client.stream_all(path, per_page=per_page, **_ps):
+            rows.append(
+                (
+                    str(m.get("id", "")),
+                    str(m.get("title", "")),
+                    str(m.get("releaseDate", "")),
+                    str(m.get("region", "")),
+                )
+            )
+            count += 1
+            if limit and count >= limit:
+                break
+        if fmt.lower() == "json":
+            click.echo(
+                json.dumps(
+                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
+                )
+            )
+            return
+        table = Table(
+            title=f"Cinema {cinema_id} movies (total {count})",
+            header_style="bold cyan",
+            show_lines=False,
+        )
+        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+        table.add_column("Title", style="bold")
+        table.add_column("Release", style="green")
+        table.add_column("Region", style="yellow")
+        for r in rows:
+            table.add_row(*r)
+        console.print(table)
+        return
+
+    result = client.list_paginated(path, **params)
+    if fmt.lower() == "json":
+        click.echo(
+            json.dumps(
+                {
+                    "items": result.items,
+                    "page": result.page,
+                    "total": result.total_items,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
+    table = Table(
+        title=f"Cinema {cinema_id} movies page {result.page}",
+        header_style="bold cyan",
+        show_lines=False,
+    )
+    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+    table.add_column("Title", style="bold")
+    table.add_column("Release", style="green")
+    table.add_column("Region", style="yellow")
+    for m in result.items:
+        table.add_row(
+            str(m.get("id", "")),
+            str(m.get("title", "")),
+            str(m.get("releaseDate", "")),
+            str(m.get("region", "")),
+        )
     console.print(table)
 
 
@@ -369,14 +570,29 @@ def movies_search(
         _ps.pop("per_page", None)
         _ps.pop("page", None)
         for m in client.stream_all("/movies", per_page=per_page, **_ps):
-            rows.append((str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", ""))))
+            rows.append(
+                (
+                    str(m.get("id", "")),
+                    str(m.get("title", "")),
+                    str(m.get("releaseDate", "")),
+                    str(m.get("region", "")),
+                )
+            )
             count += 1
             if limit and count >= limit:
                 break
         if fmt.lower() == "json":
-            click.echo(json.dumps({"items": rows, "total": count}, ensure_ascii=False, indent=2))
+            click.echo(
+                json.dumps(
+                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
+                )
+            )
             return
-        table = Table(title=f"Movies search (total {count})", header_style="bold cyan", show_lines=False)
+        table = Table(
+            title=f"Movies search (total {count})",
+            header_style="bold cyan",
+            show_lines=False,
+        )
         table.add_column("ID", justify="right", style="magenta", no_wrap=True)
         table.add_column("Title", style="bold")
         table.add_column("Release", style="green")
@@ -388,15 +604,34 @@ def movies_search(
 
     result = client.list_paginated("/movies", **params)
     if fmt.lower() == "json":
-        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+        click.echo(
+            json.dumps(
+                {
+                    "items": result.items,
+                    "page": result.page,
+                    "total": result.total_items,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
-    table = Table(title=f"Movies search page {result.page}", header_style="bold cyan", show_lines=False)
+    table = Table(
+        title=f"Movies search page {result.page}",
+        header_style="bold cyan",
+        show_lines=False,
+    )
     table.add_column("ID", justify="right", style="magenta", no_wrap=True)
     table.add_column("Title", style="bold")
     table.add_column("Release", style="green")
     table.add_column("Region", style="yellow")
     for m in result.items:
-        table.add_row(str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", "")))
+        table.add_row(
+            str(m.get("id", "")),
+            str(m.get("title", "")),
+            str(m.get("releaseDate", "")),
+            str(m.get("region", "")),
+        )
     console.print(table)
 
 
@@ -540,4 +775,4 @@ def completions_zsh() -> None:
 @completions.command("fish")
 def completions_fish() -> None:
     """Output fish completion eval line."""
-    click.echo('eval ( env _CINEAMO_COMPLETE=fish_complete cineamo )')
+    click.echo("eval ( env _CINEAMO_COMPLETE=fish_complete cineamo )")

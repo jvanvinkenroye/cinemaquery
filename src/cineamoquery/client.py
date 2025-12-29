@@ -55,7 +55,9 @@ class CineamoClient:
             next_url=(links.get("next") or {}).get("href"),
         )
 
-    def stream_all(self, path: str, per_page: int = 50, **params: Any) -> Iterable[dict[str, Any]]:
+    def stream_all(
+        self, path: str, per_page: int = 50, **params: Any
+    ) -> Iterable[dict[str, Any]]:
         page = 1
         while True:
             p = self.list_paginated(path, per_page=per_page, page=page, **params)
