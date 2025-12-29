@@ -1,21 +1,21 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 import httpx
-
 
 DEFAULT_BASE_URL = "https://api.cineamo.com"
 
 
 @dataclass
 class Page:
-    items: List[Dict[str, Any]]
-    total_items: Optional[int]
-    page: Optional[int]
-    page_count: Optional[int]
-    next_url: Optional[str]
+    items: list[dict[str, Any]]
+    total_items: int | None
+    page: int | None
+    page_count: int | None
+    next_url: str | None
 
 
 class CineamoClient:
@@ -33,12 +33,15 @@ class CineamoClient:
         resp.raise_for_status()
         return resp
 
+    def get_json(self, path: str, **params: Any) -> dict[str, Any]:
+        return self.get(path, **params).json()
+
     def list_paginated(self, path: str, **params: Any) -> Page:
         resp = self.get(path, **params)
         data = resp.json()
         embedded = data.get("_embedded", {})
         # Try to pick the first embedded array
-        items: List[Dict[str, Any]] = []
+        items: list[dict[str, Any]] = []
         for v in embedded.values():
             if isinstance(v, list):
                 items = v
@@ -52,13 +55,11 @@ class CineamoClient:
             next_url=(links.get("next") or {}).get("href"),
         )
 
-    def stream_all(self, path: str, per_page: int = 50, **params: Any) -> Iterable[Dict[str, Any]]:
+    def stream_all(self, path: str, per_page: int = 50, **params: Any) -> Iterable[dict[str, Any]]:
         page = 1
         while True:
             p = self.list_paginated(path, per_page=per_page, page=page, **params)
-            for item in p.items:
-                yield item
+            yield from p.items
             if not p.next_url:
                 break
             page += 1
-

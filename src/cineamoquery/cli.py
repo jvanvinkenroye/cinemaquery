@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
 
 import click
 from rich.console import Console
 from rich.table import Table
 
 from .client import CineamoClient
-
 
 console = Console()
 
@@ -31,21 +29,69 @@ def main(ctx: click.Context, base_url: str, timeout: float, verbose: bool, quiet
 @click.option("--city", type=str, help="Filter by city")
 @click.option("--per-page", type=int, default=10, show_default=True)
 @click.option("--page", type=int, default=1, show_default=True)
-@click.option("--json", "json_out", is_flag=True, help="Output raw JSON")
+@click.option("--all", "list_all", is_flag=True, help="Stream all pages")
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=False,
+    help="Maximum items when using --all (0 = no limit)",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    default="rich",
+    show_default=True,
+    help="Output format",
+)
 @click.pass_context
-def list_cinemas(ctx: click.Context, city: Optional[str], per_page: int, page: int, json_out: bool) -> None:
+def list_cinemas(
+    ctx: click.Context,
+    city: str | None,
+    per_page: int,
+    page: int,
+    list_all: bool,
+    limit: int,
+    fmt: str,
+) -> None:
     """List cinemas with optional filters."""
     client: CineamoClient = ctx.obj["client"]
     params = {"per_page": per_page, "page": page}
     if city:
         params["city"] = city
-    result = client.list_paginated("/cinemas", **params)
-
-    if json_out:
-        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+    if list_all:
+        count = 0
+        rows = []
+        for c in client.stream_all("/cinemas", per_page=per_page, **params):
+            rows.append((str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", ""))))
+            count += 1
+            if limit and count >= limit:
+                break
+        if fmt.lower() == "json":
+            click.echo(json.dumps({"items": rows, "total": count}, ensure_ascii=False, indent=2))
+            return
+        table = Table(
+            title=f"Cinemas (total {count})",
+            header_style="bold cyan",
+            show_lines=False,
+        )
+        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+        table.add_column("Name", style="bold")
+        table.add_column("City", style="green")
+        table.add_column("Country", style="yellow")
+        for r in rows:
+            table.add_row(*r)
+        console.print(table)
         return
 
-    table = Table(title=f"Cinemas page {result.page}", header_style="bold cyan", show_lines=False)
+    result = client.list_paginated("/cinemas", **params)
+    if fmt.lower() == "json":
+        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+        return
+    table = Table(
+        title=f"Cinemas page {result.page}", header_style="bold cyan", show_lines=False
+    )
     table.add_column("ID", justify="right", style="magenta", no_wrap=True)
     table.add_column("Name", style="bold")
     table.add_column("City", style="green")
@@ -55,25 +101,99 @@ def list_cinemas(ctx: click.Context, city: Optional[str], per_page: int, page: i
     console.print(table)
 
 
+@main.command("cinema")
+@click.option("--id", "cinema_id", type=int, required=True, help="Cinema ID")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["rich", "json"], case_sensitive=False),
+    default="rich",
+    show_default=True,
+    help="Output format",
+)
+@click.pass_context
+def get_cinema(ctx: click.Context, cinema_id: int, fmt: str) -> None:
+    """Get a single cinema by ID."""
+    client: CineamoClient = ctx.obj["client"]
+    data = client.get_json(f"/cinemas/{cinema_id}")
+    if fmt == "json":
+        click.echo(json.dumps(data, ensure_ascii=False, indent=2))
+        return
+    table = Table(title=f"Cinema {cinema_id}", header_style="bold cyan")
+    table.add_column("Field", style="magenta", no_wrap=True)
+    table.add_column("Value")
+    for key in ("id", "name", "city", "countryCode", "slug", "ticketSystem", "email"):
+        table.add_row(key, str(data.get(key, "")))
+    console.print(table)
+
+
 @main.command("movies")
 @click.option("--query", type=str, help="Search string")
 @click.option("--per-page", type=int, default=10, show_default=True)
 @click.option("--page", type=int, default=1, show_default=True)
-@click.option("--json", "json_out", is_flag=True, help="Output raw JSON")
+@click.option("--all", "list_all", is_flag=True, help="Stream all pages")
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=False,
+    help="Maximum items when using --all (0 = no limit)",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    default="rich",
+    show_default=True,
+    help="Output format",
+)
 @click.pass_context
-def list_movies(ctx: click.Context, query: Optional[str], per_page: int, page: int, json_out: bool) -> None:
+def list_movies(
+    ctx: click.Context,
+    query: str | None,
+    per_page: int,
+    page: int,
+    list_all: bool,
+    limit: int,
+    fmt: str,
+) -> None:
     """List movies with optional query."""
     client: CineamoClient = ctx.obj["client"]
     params = {"per_page": per_page, "page": page}
     if query:
         params["query"] = query
-    result = client.list_paginated("/movies", **params)
-
-    if json_out:
-        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+    if list_all:
+        count = 0
+        rows = []
+        for m in client.stream_all("/movies", per_page=per_page, **params):
+            rows.append((str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", ""))))
+            count += 1
+            if limit and count >= limit:
+                break
+        if fmt.lower() == "json":
+            click.echo(json.dumps({"items": rows, "total": count}, ensure_ascii=False, indent=2))
+            return
+        table = Table(
+            title=f"Movies (total {count})",
+            header_style="bold cyan",
+            show_lines=False,
+        )
+        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+        table.add_column("Title", style="bold")
+        table.add_column("Release", style="green")
+        table.add_column("Region", style="yellow")
+        for r in rows:
+            table.add_row(*r)
+        console.print(table)
         return
 
-    table = Table(title=f"Movies page {result.page}", header_style="bold cyan", show_lines=False)
+    result = client.list_paginated("/movies", **params)
+    if fmt.lower() == "json":
+        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+        return
+    table = Table(
+        title=f"Movies page {result.page}", header_style="bold cyan", show_lines=False
+    )
     table.add_column("ID", justify="right", style="magenta", no_wrap=True)
     table.add_column("Title", style="bold")
     table.add_column("Release", style="green")
