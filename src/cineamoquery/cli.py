@@ -203,6 +203,32 @@ def list_movies(
     console.print(table)
 
 
+@main.command("movie")
+@click.option("--id", "movie_id", type=int, required=True, help="Movie ID")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["rich", "json"], case_sensitive=False),
+    default="rich",
+    show_default=True,
+    help="Output format",
+)
+@click.pass_context
+def get_movie(ctx: click.Context, movie_id: int, fmt: str) -> None:
+    """Get a single movie by ID."""
+    client: CineamoClient = ctx.obj["client"]
+    data = client.get_json(f"/movies/{movie_id}")
+    if fmt == "json":
+        click.echo(json.dumps(data, ensure_ascii=False, indent=2))
+        return
+    table = Table(title=f"Movie {movie_id}", header_style="bold cyan")
+    table.add_column("Field", style="magenta", no_wrap=True)
+    table.add_column("Value")
+    for key in ("id", "title", "region", "releaseDate", "runtime", "imdbId"):
+        table.add_row(key, str(data.get(key, "")))
+    console.print(table)
+
+
 @main.result_callback()
 @click.pass_context
 def finalize(ctx: click.Context, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
