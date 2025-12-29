@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 
 import click
@@ -12,6 +13,7 @@ from rich.table import Table
 from .client import CineamoClient
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -38,26 +40,43 @@ def main(
     quiet: bool,
 ) -> None:
     """Cineamo API command-line tool."""
+    # Configure logging based on verbosity flags
+    if verbose:
+        logging.basicConfig(
+            level=logging.DEBUG, format="%(levelname)s: %(message)s"
+        )
+    elif quiet:
+        logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
+    else:
+        logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
+
     # Load config and apply overrides
     # Precedence: CLI flags > env vars > config file > defaults
     ctx.ensure_object(dict)
     cfg = _load_config()
+    logger.debug(f"Loaded config: {cfg}")
 
     # base_url precedence: --base-url flag/CINEAMO_BASE_URL env > config > default
     if base_url is not None:
         eff_base = base_url
+        logger.debug(f"Using base_url from CLI/env: {eff_base}")
     elif "base_url" in cfg:
         eff_base = cfg["base_url"]
+        logger.debug(f"Using base_url from config: {eff_base}")
     else:
         eff_base = "https://api.cineamo.com"
+        logger.debug(f"Using default base_url: {eff_base}")
 
     # timeout precedence: --timeout flag > config > default
     if timeout is not None:
         eff_timeout = timeout
+        logger.debug(f"Using timeout from CLI: {eff_timeout}")
     elif "timeout" in cfg:
         eff_timeout = float(cfg["timeout"])
+        logger.debug(f"Using timeout from config: {eff_timeout}")
     else:
         eff_timeout = 15.0
+        logger.debug(f"Using default timeout: {eff_timeout}")
 
     ctx.obj["client"] = CineamoClient(base_url=eff_base, timeout=eff_timeout)
     ctx.obj["verbose"] = verbose
