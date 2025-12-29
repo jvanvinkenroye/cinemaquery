@@ -127,6 +127,78 @@ def get_cinema(ctx: click.Context, cinema_id: int, fmt: str) -> None:
     console.print(table)
 
 
+@main.command("cinemas-near")
+@click.option("--lat", type=float, required=True, help="Latitude")
+@click.option("--lon", type=float, required=True, help="Longitude")
+@click.option("--distance", type=int, required=True, help="Distance in meters")
+@click.option("--per-page", type=int, default=10, show_default=True)
+@click.option("--page", type=int, default=1, show_default=True)
+@click.option("--all", "list_all", is_flag=True, help="Stream all pages")
+@click.option("--limit", type=int, default=0, show_default=False, help="Maximum items when using --all (0 = no limit)")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    default="rich",
+    show_default=True,
+    help="Output format",
+)
+@click.pass_context
+def cinemas_near(
+    ctx: click.Context,
+    lat: float,
+    lon: float,
+    distance: int,
+    per_page: int,
+    page: int,
+    list_all: bool,
+    limit: int,
+    fmt: str,
+) -> None:
+    """Search cinemas nearby coordinates."""
+    client: CineamoClient = ctx.obj["client"]
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "distance": distance,
+        "per_page": per_page,
+        "page": page,
+    }
+    if list_all:
+        count = 0
+        rows: list[tuple[str, str, str, str]] = []
+        for c in client.stream_all("/cinemas", **params):
+            rows.append((str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", ""))))
+            count += 1
+            if limit and count >= limit:
+                break
+        if fmt.lower() == "json":
+            click.echo(json.dumps({"items": rows, "total": count}, ensure_ascii=False, indent=2))
+            return
+        table = Table(title=f"Cinemas near ({lat},{lon}) total {count}", header_style="bold cyan", show_lines=False)
+        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+        table.add_column("Name", style="bold")
+        table.add_column("City", style="green")
+        table.add_column("Country", style="yellow")
+        for r in rows:
+            table.add_row(*r)
+        console.print(table)
+        return
+
+    result = client.list_paginated("/cinemas", **params)
+    if fmt.lower() == "json":
+        click.echo(json.dumps({"items": result.items, "page": result.page, "total": result.total_items}, ensure_ascii=False, indent=2))
+        return
+    table = Table(title=f"Cinemas near ({lat},{lon}) page {result.page}", header_style="bold cyan", show_lines=False)
+    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
+    table.add_column("Name", style="bold")
+    table.add_column("City", style="green")
+    table.add_column("Country", style="yellow")
+    for c in result.items:
+        table.add_row(str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", "")))
+    console.print(table)
+
+
 @main.command("movies")
 @click.option("--query", type=str, help="Search string")
 @click.option("--per-page", type=int, default=10, show_default=True)
