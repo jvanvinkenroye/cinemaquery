@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
+from typing import Any
 
 import click
+import tomli_w
+import tomllib
 from rich.console import Console
 from rich.table import Table
 
@@ -12,15 +16,30 @@ console = Console()
 
 
 @click.group()
-@click.option("--base-url", envvar="CINEAMO_BASE_URL", default="https://api.cineamo.com", help="API base URL")
-@click.option("--timeout", type=float, default=15.0, show_default=True, help="Request timeout seconds")
+@click.option(
+    "--base-url",
+    envvar="CINEAMO_BASE_URL",
+    default="https://api.cineamo.com",
+    help="API base URL",
+)
+@click.option(
+    "--timeout",
+    type=float,
+    default=15.0,
+    show_default=True,
+    help="Request timeout seconds",
+)
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Quiet output")
 @click.pass_context
 def main(ctx: click.Context, base_url: str, timeout: float, verbose: bool, quiet: bool) -> None:
     """Cineamo API command-line tool."""
+    # Load config and apply overrides
     ctx.ensure_object(dict)
-    ctx.obj["client"] = CineamoClient(base_url=base_url, timeout=timeout)
+    cfg = _load_config()
+    eff_base = base_url or cfg.get("base_url") or "https://api.cineamo.com"
+    eff_timeout = timeout or float(cfg.get("timeout", 15.0))
+    ctx.obj["client"] = CineamoClient(base_url=eff_base, timeout=eff_timeout)
     ctx.obj["verbose"] = verbose
     ctx.obj["quiet"] = quiet
 
@@ -63,7 +82,10 @@ def list_cinemas(
     if list_all:
         count = 0
         rows = []
-        for c in client.stream_all("/cinemas", per_page=per_page, **params):
+        _ps = dict(params)
+        _ps.pop("per_page", None)
+        _ps.pop("page", None)
+        for c in client.stream_all("/cinemas", per_page=per_page, **_ps):
             rows.append((str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", ""))))
             count += 1
             if limit and count >= limit:
@@ -167,7 +189,10 @@ def cinemas_near(
     if list_all:
         count = 0
         rows: list[tuple[str, str, str, str]] = []
-        for c in client.stream_all("/cinemas", **params):
+        _ps = dict(params)
+        _ps.pop("per_page", None)
+        _ps.pop("page", None)
+        for c in client.stream_all("/cinemas", per_page=per_page, **_ps):
             rows.append((str(c.get("id", "")), str(c.get("name", "")), str(c.get("city", "")), str(c.get("countryCode", ""))))
             count += 1
             if limit and count >= limit:
@@ -237,8 +262,18 @@ def list_movies(
     if list_all:
         count = 0
         rows = []
-        for m in client.stream_all("/movies", per_page=per_page, **params):
-            rows.append((str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", ""))))
+        _ps = dict(params)
+        _ps.pop("per_page", None)
+        _ps.pop("page", None)
+        for m in client.stream_all("/movies", per_page=per_page, **_ps):
+            rows.append(
+                (
+                    str(m.get("id", "")),
+                    str(m.get("title", "")),
+                    str(m.get("releaseDate", "")),
+                    str(m.get("region", "")),
+                )
+            )
             count += 1
             if limit and count >= limit:
                 break
@@ -330,7 +365,10 @@ def movies_search(
     if list_all:
         count = 0
         rows: list[tuple[str, str, str, str]] = []
-        for m in client.stream_all("/movies", **params):
+        _ps = dict(params)
+        _ps.pop("per_page", None)
+        _ps.pop("page", None)
+        for m in client.stream_all("/movies", per_page=per_page, **_ps):
             rows.append((str(m.get("id", "")), str(m.get("title", "")), str(m.get("releaseDate", "")), str(m.get("region", ""))))
             count += 1
             if limit and count >= limit:
@@ -441,17 +479,12 @@ def config() -> None:
 
 
 def _config_path() -> str:
-    import os
-
     base = os.path.join(os.path.expanduser("~"), ".config", "cineamoquery")
     os.makedirs(base, exist_ok=True)
     return os.path.join(base, "config.toml")
 
 
 def _load_config() -> dict[str, str]:
-    import tomllib
-    import os
-
     path = _config_path()
     if not os.path.exists(path):
         return {}
@@ -460,8 +493,6 @@ def _load_config() -> dict[str, str]:
 
 
 def _save_config(cfg: dict[str, str]) -> None:
-    import tomli_w
-
     with open(_config_path(), "wb") as f:
         f.write(tomli_w.dumps(cfg).encode())
 
