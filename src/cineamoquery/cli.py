@@ -5,6 +5,7 @@ import logging
 import os
 
 import click
+import httpx
 import tomli_w
 import tomllib
 from rich.console import Console
@@ -14,6 +15,60 @@ from .client import CineamoClient
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+def handle_api_errors(func):  # type: ignore[no-untyped-def]
+    """Decorator to handle API errors with user-friendly messages."""
+
+    def wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]
+        ctx = click.get_current_context()
+        verbose = ctx.obj.get("verbose", False) if ctx.obj else False
+
+        try:
+            return func(*args, **kwargs)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:  # noqa: PLR2004
+                console.print(
+                    "[bold red]Error:[/bold red] Resource not found", style="red"
+                )
+            elif e.response.status_code == 429:  # noqa: PLR2004
+                console.print(
+                    "[bold red]Error:[/bold red] Rate limit exceeded. "
+                    "Please try again later.",
+                    style="red",
+                )
+            elif e.response.status_code >= 500:  # noqa: PLR2004
+                console.print(
+                    f"[bold red]Error:[/bold red] Server error "
+                    f"({e.response.status_code}). Please try again later.",
+                    style="red",
+                )
+            else:
+                console.print(
+                    f"[bold red]Error:[/bold red] API returned "
+                    f"{e.response.status_code}",
+                    style="red",
+                )
+
+            if verbose:
+                logger.exception("Full error details:")
+            raise click.Abort() from e
+        except httpx.RequestError:
+            console.print(
+                "[bold red]Error:[/bold red] Could not connect to API. "
+                "Check your network connection.",
+                style="red",
+            )
+            if verbose:
+                logger.exception("Full error details:")
+            raise click.Abort() from None
+        except Exception:
+            # Re-raise unexpected errors to see full stack trace
+            if verbose:
+                logger.exception("Unexpected error:")
+            raise
+
+    return wrapper
 
 
 @click.group()
@@ -104,6 +159,7 @@ def main(
     help="Output format",
 )
 @click.pass_context
+@handle_api_errors
 def list_cinemas(
     ctx: click.Context,
     city: str | None,
@@ -199,6 +255,7 @@ def list_cinemas(
     help="Output format",
 )
 @click.pass_context
+@handle_api_errors
 def get_cinema(ctx: click.Context, cinema_id: int, fmt: str) -> None:
     """Get a single cinema by ID."""
     client: CineamoClient = ctx.obj["client"]
@@ -237,6 +294,7 @@ def get_cinema(ctx: click.Context, cinema_id: int, fmt: str) -> None:
     help="Output format",
 )
 @click.pass_context
+@handle_api_errors
 def cinemas_near(
     ctx: click.Context,
     lat: float,
@@ -350,6 +408,7 @@ def cinemas_near(
     help="Output format",
 )
 @click.pass_context
+@handle_api_errors
 def list_movies(
     ctx: click.Context,
     query: str | None,
@@ -457,6 +516,7 @@ def list_movies(
     help="Output format",
 )
 @click.pass_context
+@handle_api_errors
 def cinema_movies(
     ctx: click.Context,
     cinema_id: int,
@@ -574,6 +634,7 @@ def cinema_movies(
     help="Output format",
 )
 @click.pass_context
+@handle_api_errors
 def movies_search(
     ctx: click.Context,
     query: str | None,
@@ -684,6 +745,7 @@ def movies_search(
     help="Output format",
 )
 @click.pass_context
+@handle_api_errors
 def get_movie(ctx: click.Context, movie_id: int, fmt: str) -> None:
     """Get a single movie by ID."""
     client: CineamoClient = ctx.obj["client"]
@@ -719,6 +781,7 @@ def finalize(ctx: click.Context, *args, **kwargs) -> None:  # type: ignore[no-un
     help="Output format",
 )
 @click.pass_context
+@handle_api_errors
 def raw_get(ctx: click.Context, path: str, params: tuple[str, ...], fmt: str) -> None:
     """Generic GET for any API path (starting with '/')."""
     if not path.startswith("/"):
