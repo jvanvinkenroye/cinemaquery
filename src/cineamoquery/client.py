@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -34,7 +34,7 @@ class CineamoClient:
         return resp
 
     def get_json(self, path: str, **params: Any) -> dict[str, Any]:
-        return self.get(path, **params).json()
+        return cast(dict[str, Any], self.get(path, **params).json())
 
     def list_paginated(self, path: str, **params: Any) -> Page:
         resp = self.get(path, **params)

@@ -3,13 +3,20 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
+from typing import Any, cast
 
 import click
 import httpx
 import tomli_w
-import tomllib
 from rich.console import Console
 from rich.table import Table
+
+# tomllib is only available in Python 3.11+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from .client import CineamoClient
 
@@ -171,7 +178,7 @@ def list_cinemas(
 ) -> None:
     """List cinemas with optional filters."""
     client: CineamoClient = ctx.obj["client"]
-    params = {"per_page": per_page, "page": page}
+    params: dict[str, Any] = {"per_page": per_page, "page": page}
     if city:
         params["city"] = city
     if list_all:
@@ -420,7 +427,7 @@ def list_movies(
 ) -> None:
     """List movies with optional query."""
     client: CineamoClient = ctx.obj["client"]
-    params = {"per_page": per_page, "page": page}
+    params: dict[str, Any] = {"per_page": per_page, "page": page}
     if query:
         params["query"] = query
     if list_all:
@@ -825,7 +832,7 @@ def _load_config() -> dict[str, str]:
     if not os.path.exists(path):
         return {}
     with open(path, "rb") as f:
-        return tomllib.load(f)
+        return cast(dict[str, str], tomllib.load(f))
 
 
 def _save_config(cfg: dict[str, str]) -> None:
