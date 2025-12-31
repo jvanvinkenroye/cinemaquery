@@ -13,12 +13,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv venv --seed
 source .venv/bin/activate
 uv pip install -e .
-uv pip install ruff mypy pytest pytest-playwright
+uv pip install -e ".[dev]"  # Install dev dependencies
 ```
-
-**Note:** Some dependencies in pyproject.toml are currently unused:
-- `pyyaml>=6.0` - listed but not used in code
-- `pytest-playwright` - dev dependency but no browser tests yet
 
 ### Code Quality
 ```bash
@@ -32,19 +28,29 @@ mypy src
 
 ### Testing
 ```bash
-# Run tests (when implemented)
-pytest
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_client.py -v
 
 # CLI smoke test
 cineamo --help
 cineamo cinemas --per-page 1 --format json
 ```
 
-**Testing Note:** The codebase currently has no test files, though pytest is configured as a dev dependency. When adding tests, place them in a `tests/` directory and follow these patterns:
-- Use pytest fixtures for CineamoClient instances
-- Mock httpx responses for unit tests
+**Test Suite:** The project has comprehensive test coverage with 46 tests across three test files:
+- `tests/test_client.py` - 12 tests for CineamoClient (HAL-JSON parsing, pagination, streaming)
+- `tests/test_cli.py` - 20 tests for CLI commands (all commands, formats, error handling)
+- `tests/test_config.py` - 14 tests for configuration (precedence, persistence, operations)
+
+**Test Patterns:**
+- Use pytest fixtures for CineamoClient instances (`conftest.py`)
+- Mock httpx responses for unit tests (avoiding real API calls)
 - Test both single-page and `--all` streaming modes
 - Verify Rich table output and JSON formatting
+- Test error handling (404, 429, 500+ status codes, network errors)
+- Test configuration precedence (CLI flags > env vars > config file > defaults)
 
 ### Running the CLI
 ```bash
@@ -226,18 +232,28 @@ The client uses `httpx.Response.raise_for_status()` which throws:
 - `httpx.HTTPStatusError` for 4xx/5xx responses
 - `httpx.RequestError` for network issues
 
-The CLI doesn't catch these exceptions - they propagate to the user with stack traces. For production, consider adding try/except blocks around client calls.
+The CLI implements a `@handle_api_errors` decorator that catches these exceptions and provides user-friendly error messages:
+- **404 errors**: "Resource not found"
+- **429 errors**: "Rate limit exceeded. Please try again later."
+- **500+ errors**: "Server error (XXX). Please try again later."
+- **Network errors**: "Could not connect to API. Check your network connection."
+
+When `--verbose` flag is used, full stack traces are shown for debugging.
 
 ## CI/CD
 
 GitHub Actions workflow (`.github/workflows/ci.yml`):
-- Linting with ruff
-- Type checking with mypy
-- CLI smoke test to ensure basic functionality
+- **Ruff linting** - Code style and quality checks
+- **Mypy type checking** - Full strict type checking (requires tomli for Python 3.10 compatibility)
+- **Pytest** - 46 tests across client, CLI, and config
+- **CLI smoke test** - Basic functionality verification
 
 The workflow runs on:
 - Push to `main` branch
 - Pull requests to `main`
+
+**CI Dependencies:**
+- `tomli` must be installed in CI for mypy to type-check the conditional import (Python 3.11+ uses stdlib `tomllib`, Python 3.10 uses `tomli`)
 
 ## Code Style
 
@@ -246,6 +262,110 @@ The workflow runs on:
 - Line length: 88 characters
 - All functions must have type annotations (`disallow_untyped_defs = true`)
 - Use `from __future__ import annotations` for forward references
+
+## Best Practices and Lessons Learned
+
+### Type Checking
+
+**Mypy strict mode challenges and solutions:**
+
+1. **httpx Response.json() returns Any**
+   - **Problem**: `response.json()` returns `Any`, causing mypy errors when expecting `dict[str, Any]`
+   - **Solution**: Use `cast(dict[str, Any], response.json())` to satisfy type checker
+   - **Example**: `client.py:37`
+
+2. **tomllib/tomli conditional import**
+   - **Problem**: `tomllib` is Python 3.11+ stdlib, need `tomli` for 3.10
+   - **Solution**: Conditional import with version check:
+     ```python
+     if sys.version_info >= (3, 11):
+         import tomllib
+     else:
+         import tomli as tomllib
+     ```
+   - **Important**: CI must install `tomli` for mypy to type-check the import, even when running Python 3.12
+
+3. **Dict type inference with mixed values**
+   - **Problem**: `params = {"per_page": 10, "page": 1}` inferred as `dict[str, int]`, fails when adding string values
+   - **Solution**: Explicitly annotate as `dict[str, Any]`: `params: dict[str, Any] = {...}`
+   - **Example**: `cli.py:180, 430`
+
+4. **Config file parsing**
+   - **Problem**: `tomllib.load()` returns `Any`
+   - **Solution**: Use `cast(dict[str, str], tomllib.load(f))` to specify expected type
+   - **Example**: `cli.py:835`
+
+### Testing
+
+**Pytest patterns that worked well:**
+
+1. **Shared fixtures in conftest.py**
+   - Mock httpx.Client in one place, reuse across all tests
+   - Sample data fixtures reduce duplication
+   - Temporary config directories with proper cleanup
+
+2. **Test organization**
+   - Separate test files by component (client, cli, config)
+   - Group related tests in classes (e.g., `TestCinemasCommand`)
+   - Use descriptive test names: `test_cinemas_json_format`, not `test_1`
+
+3. **Mocking strategies**
+   - Mock at the httpx.Client level, not individual methods
+   - Use `Mock(spec=...)` to catch attribute errors early
+   - Return realistic HAL-JSON structures in mocks
+
+4. **Per-file ignore rules**
+   - Tests often need long lines and magic values
+   - Add to `pyproject.toml`: `"tests/**/*.py" = ["E501", "PLR2004"]`
+
+### Error Handling
+
+**Decorator pattern for consistent error handling:**
+
+1. **Benefits**
+   - Single source of truth for error messages
+   - Easy to apply to all commands
+   - Centralized verbose/quiet handling
+
+2. **Implementation**
+   - Catch `httpx.HTTPStatusError` and `httpx.RequestError`
+   - Extract context from Click context object
+   - Use Rich console for colored error output
+   - Show stack traces only with `--verbose`
+
+### Configuration Precedence
+
+**Explicit is better than implicit:**
+
+1. **Problem with `or` chains**
+   - `base_url or cfg.get("base_url") or default` fails with empty strings
+   - Short-circuit evaluation doesn't work as expected
+
+2. **Solution with explicit checks**
+   ```python
+   if base_url is not None:  # CLI flag
+       eff_base = base_url
+   elif "base_url" in cfg:  # Config file
+       eff_base = cfg["base_url"]
+   else:  # Default
+       eff_base = "https://api.cineamo.com"
+   ```
+   - Use `None` as Click default, not hardcoded values
+   - Check for `None` explicitly, not truthiness
+
+### Pagination and Streaming
+
+**HAL-JSON automatic detection:**
+
+1. **Flexible embedded data extraction**
+   - Don't hardcode `_embedded.cinemas` or `_embedded.movies`
+   - Iterate through values, take first list found
+   - Enables adding new endpoints without client changes
+
+2. **Streaming implementation**
+   - Use generators (`yield from`) for memory efficiency
+   - Respect `--limit` flag by breaking early
+   - Stop when `next_url` is None, not when items list is empty
 
 ## Troubleshooting
 
