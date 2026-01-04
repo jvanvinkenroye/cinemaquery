@@ -10,16 +10,16 @@ Run the tool directly with `uvx` without installing:
 
 ```bash
 # Run from GitHub (always uses latest version)
-uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamoquery --help
+uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamo --help
 
 # Get showtimes for a cinema
-uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamoquery showtimes --cinema-id 781
+uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamo showtimes --cinema-id 781
 
 # List cinemas in a city
-uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamoquery cinemas --city Berlin --per-page 5
+uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamo cinemas --city Berlin --per-page 5
 
 # Run from local directory (for development)
-uvx --from . cineamoquery --help
+uvx --from . cineamo --help
 ```
 
 **Note:** The `uvx` command downloads and runs the tool in an isolated environment without installing it globally. Perfect for trying it out or running occasionally.
