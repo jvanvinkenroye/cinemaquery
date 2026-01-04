@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for cineamoquery tests."""
+"""Shared pytest fixtures for cinemaquery tests."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import httpx
 import pytest
 
-from cineamoquery.client import CineamoClient, Page
+from cinemaquery.client import CineamoClient, Page
 
 
 @pytest.fixture

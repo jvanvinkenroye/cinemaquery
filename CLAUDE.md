@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`cineamoquery` is a CLI tool to query the public Cineamo API. It provides commands to search cinemas, movies, and related data with rich table output or JSON formatting.
+`cinemaquery` is a CLI tool to query the public Cineamo API. It provides commands to search cinemas, movies, and related data with rich table output or JSON formatting.
 
 ## Development Commands
 
@@ -58,7 +58,7 @@ cineamo cinemas --per-page 1 --format json
 cineamo --help
 
 # Main entry point
-python -m cineamoquery.cli
+python -m cinemaquery.cli
 
 # Environment variables
 CINEAMO_BASE_URL=https://custom-api.example.com cineamo cinemas
@@ -118,19 +118,19 @@ cineamo completions bash|zsh|fish
 
 ### Two-Layer Design
 
-1. **Client Layer** (`src/cineamoquery/client.py`):
+1. **Client Layer** (`src/cinemaquery/client.py`):
    - `CineamoClient`: Thin wrapper around httpx for API communication
    - Handles pagination via `list_paginated()` returning `Page` dataclass
    - Provides `stream_all()` iterator for fetching all pages automatically
    - HAL-JSON aware (handles `_embedded`, `_links`, `_page`, `_total_items`)
    - Error handling: Uses `raise_for_status()` to throw exceptions on HTTP errors
 
-2. **CLI Layer** (`src/cineamoquery/cli.py`):
+2. **CLI Layer** (`src/cinemaquery/cli.py`):
    - Click-based command structure with command groups
    - All commands share common options via `@click.pass_context`
    - Client instance created once in main group, passed to subcommands via context
    - Client cleanup handled in `@main.result_callback()` to ensure httpx client is properly closed
-   - Configuration stored in `~/.config/cineamoquery/config.toml`
+   - Configuration stored in `~/.config/cinemaquery/config.toml`
 
 ### Page Dataclass Structure
 
@@ -172,7 +172,7 @@ Config commands use TOML for persistence (tomli_w for writing, tomllib for readi
 
 ### Configuration and Environment Variables
 
-**Configuration file:** `~/.config/cineamoquery/config.toml`
+**Configuration file:** `~/.config/cinemaquery/config.toml`
 
 **Environment variables:**
 - `CINEAMO_BASE_URL` - Override API base URL
@@ -405,6 +405,6 @@ The workflow runs on:
 - Use `Any` from typing for dynamic API response data
 
 **Config Not Loaded:**
-- Check file exists at `~/.config/cineamoquery/config.toml`
+- Check file exists at `~/.config/cinemaquery/config.toml`
 - Verify TOML syntax with `cineamo config show`
 - Remember CLI flags and env vars override config

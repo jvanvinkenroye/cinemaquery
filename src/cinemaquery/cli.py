@@ -972,11 +972,11 @@ def raw_get(ctx: click.Context, path: str, params: tuple[str, ...], fmt: str) ->
 
 @main.group()
 def config() -> None:
-    """Manage cineamoquery configuration."""
+    """Manage cinemaquery configuration."""
 
 
 def _config_path() -> str:
-    base = os.path.join(os.path.expanduser("~"), ".config", "cineamoquery")
+    base = os.path.join(os.path.expanduser("~"), ".config", "cinemaquery")
     os.makedirs(base, exist_ok=True)
     return os.path.join(base, "config.toml")
 

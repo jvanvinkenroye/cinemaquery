@@ -9,8 +9,8 @@ import httpx
 import pytest
 from click.testing import CliRunner
 
-from cineamoquery.cli import main
-from cineamoquery.client import Page
+from cinemaquery.cli import main
+from cinemaquery.client import Page
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ class TestCinemasCommand:
         assert "--all" in result.output
         assert "--format" in result.output
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_cinemas_json_format(self, mock_client_class, runner):
         """Test cinemas command with JSON format."""
         mock_client = Mock()
@@ -84,7 +84,7 @@ class TestCinemasCommand:
         assert output_data["page"] == 1
         assert output_data["total"] == 1
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_cinemas_with_city_filter(self, mock_client_class, runner):
         """Test cinemas command with city filter."""
         mock_client = Mock()
@@ -112,7 +112,7 @@ class TestCinemaCommand:
         assert "--id" in result.output
         assert "--format" in result.output
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_cinema_json_format(self, mock_client_class, runner, sample_cinema_data):
         """Test cinema command with JSON format."""
         mock_client = Mock()
@@ -126,7 +126,7 @@ class TestCinemaCommand:
         assert output_data["id"] == 1
         assert output_data["name"] == "Test Cinema"
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_cinema_handles_404(self, mock_client_class, runner):
         """Test cinema command handles 404 gracefully."""
         mock_client = Mock()
@@ -153,7 +153,7 @@ class TestMoviesCommand:
         assert "--query" in result.output
         assert "--per-page" in result.output
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_movies_with_query(self, mock_client_class, runner):
         """Test movies command with query parameter."""
         mock_client = Mock()
@@ -220,7 +220,7 @@ class TestConfigCommand:
 class TestVerboseQuietFlags:
     """Test --verbose and --quiet flags."""
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_verbose_flag_enables_debug_logging(self, mock_client_class, runner):
         """Test --verbose flag enables debug logging."""
         mock_client = Mock()
@@ -234,7 +234,7 @@ class TestVerboseQuietFlags:
         # Verbose mode should show DEBUG logs
         assert "DEBUG" in result.output or result.exit_code == 0
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_quiet_flag_suppresses_output(self, mock_client_class, runner):
         """Test --quiet flag suppresses warnings."""
         mock_client = Mock()
@@ -252,7 +252,7 @@ class TestVerboseQuietFlags:
 class TestErrorHandling:
     """Test error handling."""
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_network_error_handling(self, mock_client_class, runner):
         """Test network errors are handled gracefully."""
         mock_client = Mock()
@@ -264,7 +264,7 @@ class TestErrorHandling:
         assert result.exit_code == 1
         assert "Could not connect to API" in result.output
 
-    @patch("cineamoquery.cli.CineamoClient")
+    @patch("cinemaquery.cli.CineamoClient")
     def test_500_error_handling(self, mock_client_class, runner):
         """Test 500 errors are handled gracefully."""
         mock_client = Mock()

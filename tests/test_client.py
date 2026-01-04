@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import httpx
 import pytest
 
-from cineamoquery.client import CineamoClient, Page
+from cinemaquery.client import CineamoClient, Page
 
 
 class TestCineamoClient:

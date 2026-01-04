@@ -1,1 +1,1 @@
-"""Tests for cineamoquery."""
+"""Tests for cinemaquery."""

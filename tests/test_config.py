@@ -8,21 +8,21 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from cineamoquery.cli import _config_path, _load_config, _save_config, main
+from cinemaquery.cli import _config_path, _load_config, _save_config, main
 
 
 @pytest.fixture
 def temp_config_dir(monkeypatch):
     """Create a temporary config directory for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        config_dir = Path(tmpdir) / ".config" / "cineamoquery"
+        config_dir = Path(tmpdir) / ".config" / "cinemaquery"
         config_dir.mkdir(parents=True)
 
         # Mock the config path to use our temp directory
         def mock_config_path():
             return str(config_dir / "config.toml")
 
-        monkeypatch.setattr("cineamoquery.cli._config_path", mock_config_path)
+        monkeypatch.setattr("cinemaquery.cli._config_path", mock_config_path)
         yield config_dir
 
 
@@ -198,7 +198,7 @@ class TestConfigPathCreation:
     def test_config_path_creates_directory(self, monkeypatch):
         """Test that config path creates parent directories."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            test_config_dir = Path(tmpdir) / "test_config" / "cineamoquery"
+            test_config_dir = Path(tmpdir) / "test_config" / "cinemaquery"
             test_config_path = test_config_dir / "config.toml"
 
             def mock_config_path():
@@ -206,7 +206,7 @@ class TestConfigPathCreation:
                 test_config_dir.mkdir(parents=True, exist_ok=True)
                 return str(test_config_path)
 
-            monkeypatch.setattr("cineamoquery.cli._config_path", mock_config_path)
+            monkeypatch.setattr("cinemaquery.cli._config_path", mock_config_path)
 
             # Save config should work with the mocked path
             _save_config({"test": "value"})

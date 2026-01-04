@@ -1,5 +1,5 @@
 def main():
-    print("Hello from cineamoquery!")
+    print("Hello from cinemaquery!")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# cineamoquery
+# cinemaquery
 
 CLI tool to query the public Cineamo API with rich table output and JSON formatting.
 
@@ -106,7 +106,7 @@ cineamo --verbose cinemas --city Paris
 
 ## Configuration
 
-Configuration is stored in `~/.config/cineamoquery/config.toml`.
+Configuration is stored in `~/.config/cinemaquery/config.toml`.
 
 **Precedence (highest to lowest):**
 1. Command-line flags (e.g., `--base-url`)
