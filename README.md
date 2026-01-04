@@ -4,6 +4,26 @@ CLI tool to query the public Cineamo API with rich table output and JSON formatt
 
 [![CI](https://github.com/jvanvinkenroye/cineamoquery/actions/workflows/ci.yml/badge.svg)](https://github.com/jvanvinkenroye/cineamoquery/actions/workflows/ci.yml)
 
+## Quick Start (No Installation Required)
+
+Run the tool directly with `uvx` without installing:
+
+```bash
+# Run from GitHub (always uses latest version)
+uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamoquery --help
+
+# Get showtimes for a cinema
+uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamoquery showtimes --cinema-id 781
+
+# List cinemas in a city
+uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamoquery cinemas --city Berlin --per-page 5
+
+# Run from local directory (for development)
+uvx --from . cineamoquery --help
+```
+
+**Note:** The `uvx` command downloads and runs the tool in an isolated environment without installing it globally. Perfect for trying it out or running occasionally.
+
 ## Setup
 
 ```bash
@@ -17,7 +37,23 @@ For development:
 uv pip install -e ".[dev]"
 ```
 
-## Quick Start
+## Installation Methods
+
+### Using uv tool (recommended for regular use)
+
+```bash
+uv tool install git+https://github.com/jvanvinkenroye/cineamoquery
+```
+
+After installation, the `cineamo` command is available globally.
+
+### Using pip
+
+```bash
+pip install git+https://github.com/jvanvinkenroye/cineamoquery
+```
+
+## Usage Examples
 
 ```bash
 # Get help
