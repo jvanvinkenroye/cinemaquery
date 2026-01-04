@@ -65,7 +65,9 @@ class TestCinemasCommand:
         """Test cinemas command with JSON format."""
         mock_client = Mock()
         mock_page = Page(
-            items=[{"id": 1, "name": "Test Cinema", "city": "Berlin", "countryCode": "DE"}],
+            items=[
+                {"id": 1, "name": "Test Cinema", "city": "Berlin", "countryCode": "DE"}
+            ],
             total_items=1,
             page=1,
             page_count=1,
@@ -90,7 +92,9 @@ class TestCinemasCommand:
         mock_client.list_paginated.return_value = mock_page
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(main, ["cinemas", "--city", "Berlin", "--format", "json"])
+        result = runner.invoke(
+            main, ["cinemas", "--city", "Berlin", "--format", "json"]
+        )
 
         assert result.exit_code == 0
         mock_client.list_paginated.assert_called_once()
@@ -154,7 +158,14 @@ class TestMoviesCommand:
         """Test movies command with query parameter."""
         mock_client = Mock()
         mock_page = Page(
-            items=[{"id": 1, "title": "Test Movie", "releaseDate": "2024-01-01", "region": "DE"}],
+            items=[
+                {
+                    "id": 1,
+                    "title": "Test Movie",
+                    "releaseDate": "2024-01-01",
+                    "region": "DE",
+                }
+            ],
             total_items=1,
             page=1,
             page_count=1,

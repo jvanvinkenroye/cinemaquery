@@ -79,6 +79,9 @@ cineamo cinemas-near --lat <LAT> --lon <LON> --distance <M> [--per-page N] [--al
 
 # List movies showing at a specific cinema
 cineamo cinema-movies --cinema-id <ID> [--query Q] [--region R] [--per-page N] [--all] [--limit N] [--format ...]
+
+# List showtimes/screenings for a cinema
+cineamo showtimes --cinema-id <ID> [--date YYYY-MM-DD] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]
 ```
 
 ### Movie Commands

@@ -37,7 +37,9 @@ class TestCineamoClient:
         assert client.base_url == "https://api.test.com"
         client.close()
 
-    def test_get_json_success(self, cineamo_client, mock_httpx_client, sample_cinema_data):
+    def test_get_json_success(
+        self, cineamo_client, mock_httpx_client, sample_cinema_data
+    ):
         """Test get_json returns JSON data on success."""
         mock_response = Mock()
         mock_response.json.return_value = sample_cinema_data

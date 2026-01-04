@@ -32,6 +32,9 @@ cineamo movies --query Dune --per-page 5
 # Get detailed cinema info
 cineamo cinema --id 123
 
+# Get showtimes for a cinema
+cineamo showtimes --cinema-id 781 --date 2026-01-04
+
 # Enable verbose logging
 cineamo --verbose cinemas --city Paris
 ```
@@ -43,6 +46,7 @@ cineamo --verbose cinemas --city Paris
 - `cineamo cinema --id <ID> [--format rich|json]` - Get single cinema detail
 - `cineamo cinemas-near --lat <LAT> --lon <LON> --distance <M> [...]` - Find cinemas near coordinates
 - `cineamo cinema-movies --cinema-id <ID> [--query Q] [--region R] [...]` - List movies at a cinema
+- `cineamo showtimes --cinema-id <ID> [--date YYYY-MM-DD] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]` - List showtimes/screenings for a cinema
 
 ### Movie Commands
 - `cineamo movies [--query Q] [--per-page N] [--page N] [--all] [--limit N] [--format ...]` - List movies with optional query

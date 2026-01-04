@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 from typing import Any, cast
 
 import click
@@ -104,9 +105,7 @@ def main(
     """Cineamo API command-line tool."""
     # Configure logging based on verbosity flags
     if verbose:
-        logging.basicConfig(
-            level=logging.DEBUG, format="%(levelname)s: %(message)s"
-        )
+        logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
     elif quiet:
         logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
     else:
@@ -612,6 +611,148 @@ def cinema_movies(
             str(m.get("title", "")),
             str(m.get("releaseDate", "")),
             str(m.get("region", "")),
+        )
+    console.print(table)
+
+
+@main.command("showtimes")
+@click.option("--cinema-id", type=int, required=True, help="Cinema ID")
+@click.option(
+    "--date",
+    type=str,
+    help="Date in YYYY-MM-DD format (default: today)",
+)
+@click.option("--per-page", type=int, default=20, show_default=True)
+@click.option("--page", type=int, default=1, show_default=True)
+@click.option("--all", "list_all", is_flag=True, help="Stream all pages")
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=False,
+    help="Maximum items when using --all (0 = no limit)",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    default="rich",
+    show_default=True,
+    help="Output format",
+)
+@click.pass_context
+@handle_api_errors
+def list_showtimes(
+    ctx: click.Context,
+    cinema_id: int,
+    date: str | None,
+    per_page: int,
+    page: int,
+    list_all: bool,
+    limit: int,
+    fmt: str,
+) -> None:
+    """List showtimes/screenings for a specific cinema."""
+    client: CineamoClient = ctx.obj["client"]
+
+    # Use today's date if not specified
+    if date is None:
+        start_datetime = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    else:
+        # Parse date and set to midnight UTC
+        start_datetime = datetime.fromisoformat(date).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc
+        )
+
+    params: dict[str, Any] = {
+        "cinemaIds[]": cinema_id,
+        "startDatetime": start_datetime.isoformat().replace("+00:00", "Z"),
+        "per_page": per_page,
+        "page": page,
+    }
+
+    if list_all:
+        count = 0
+        rows = []
+        _ps = dict(params)
+        _ps.pop("per_page", None)
+        _ps.pop("page", None)
+        for showing in client.stream_all("/showings", per_page=per_page, **_ps):
+            start_dt = datetime.fromisoformat(
+                showing["startDatetime"].replace("Z", "+00:00")
+            )
+            rows.append(
+                (
+                    start_dt.strftime("%Y-%m-%d %H:%M"),
+                    str(showing.get("name", "")),
+                    str(showing.get("language", "")),
+                    "OV" if showing.get("isOriginalLanguage") else "",
+                    str(showing.get("id", "")),
+                )
+            )
+            count += 1
+            if limit and count >= limit:
+                break
+
+        if fmt.lower() == "json":
+            keys = ["datetime", "name", "language", "original", "id"]
+            output: dict[str, Any] = {
+                "items": [dict(zip(keys, row, strict=True)) for row in rows]
+            }
+            console.print_json(data=output)
+        else:
+            table = Table(
+                title=f"Showtimes for cinema {cinema_id} (Total: {count})",
+                header_style="bold cyan",
+                show_lines=False,
+            )
+            table.add_column("Date/Time", style="green", no_wrap=True)
+            table.add_column("Movie", style="bold")
+            table.add_column("Language", style="yellow", no_wrap=True)
+            table.add_column("Original", style="magenta", no_wrap=True)
+            table.add_column("ID", justify="right", style="dim", no_wrap=True)
+            for row in rows:
+                table.add_row(*row)
+            console.print(table)
+        return
+
+    # Single page
+    result = client.list_paginated("/showings", **params)
+
+    if fmt.lower() == "json":
+        json_output: dict[str, Any] = {
+            "items": result.items,
+            "total_items": result.total_items,
+            "page": result.page,
+            "page_count": result.page_count,
+        }
+        console.print_json(data=json_output)
+        return
+
+    # Rich table output
+    table = Table(
+        title=f"Showtimes for cinema {cinema_id} - Page {result.page}",
+        header_style="bold cyan",
+        show_lines=False,
+    )
+    table.add_column("Date/Time", style="green", no_wrap=True)
+    table.add_column("Movie", style="bold")
+    table.add_column("Language", style="yellow", no_wrap=True)
+    table.add_column("Original", style="magenta", no_wrap=True)
+    table.add_column("ID", justify="right", style="dim", no_wrap=True)
+
+    for showing in result.items:
+        start_dt = datetime.fromisoformat(
+            showing["startDatetime"].replace("Z", "+00:00")
+        )
+        table.add_row(
+            start_dt.strftime("%Y-%m-%d %H:%M"),
+            str(showing.get("name", "")),
+            str(showing.get("language", "")),
+            "OV" if showing.get("isOriginalLanguage") else "",
+            str(showing.get("id", "")),
         )
     console.print(table)
 

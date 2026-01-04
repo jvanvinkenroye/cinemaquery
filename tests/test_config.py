@@ -69,7 +69,9 @@ class TestConfigPrecedence:
 
         runner = CliRunner()
         # CLI flag should take precedence
-        result = runner.invoke(main, ["--base-url", "https://cli.example.com", "--help"])
+        result = runner.invoke(
+            main, ["--base-url", "https://cli.example.com", "--help"]
+        )
         assert result.exit_code == 0
 
 
