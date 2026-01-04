@@ -37,7 +37,8 @@ dependencies = [
     { name = "click" },
     { name = "httpx" },
     { name = "rich" },
-    { name = "tomli-w", marker = "python_full_version >= '3.11'" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "tomli-w" },
 ]
 
 [package.optional-dependencies]
@@ -55,7 +56,8 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "rich", specifier = ">=13.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
-    { name = "tomli-w", marker = "python_full_version >= '3.11'", specifier = ">=1.0" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
+    { name = "tomli-w", specifier = ">=1.0" },
 ]
 provides-extras = ["dev"]
 
