@@ -22,7 +22,7 @@ dev = [
 ]
 
 [project.scripts]
-cineamo = "cinemaquery.cli:main"
+cinemaquery = "cinemaquery.cli:main"
 
 [tool.ruff]
 line-length = 88

@@ -35,8 +35,8 @@ pytest tests/ -v
 pytest tests/test_client.py -v
 
 # CLI smoke test
-cineamo --help
-cineamo cinemas --per-page 1 --format json
+cinemaquery --help
+cinemaquery cinemas --per-page 1 --format json
 ```
 
 **Test Suite:** The project has comprehensive test coverage with 46 tests across three test files:
@@ -55,13 +55,13 @@ cineamo cinemas --per-page 1 --format json
 ### Running the CLI
 ```bash
 # After installation in dev mode
-cineamo --help
+cinemaquery --help
 
 # Main entry point
 python -m cinemaquery.cli
 
 # Environment variables
-CINEAMO_BASE_URL=https://custom-api.example.com cineamo cinemas
+CINEAMO_BASE_URL=https://custom-api.example.com cinemaquery cinemas
 ```
 
 ## Available Commands
@@ -69,49 +69,49 @@ CINEAMO_BASE_URL=https://custom-api.example.com cineamo cinemas
 ### Cinema Commands
 ```bash
 # List cinemas with filters
-cineamo cinemas [--city <CITY>] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]
+cinemaquery cinemas [--city <CITY>] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]
 
 # Get single cinema detail
-cineamo cinema --id <ID> [--format rich|json]
+cinemaquery cinema --id <ID> [--format rich|json]
 
 # Find cinemas near coordinates
-cineamo cinemas-near --lat <LAT> --lon <LON> --distance <M> [--per-page N] [--all] [--limit N] [--format ...]
+cinemaquery cinemas-near --lat <LAT> --lon <LON> --distance <M> [--per-page N] [--all] [--limit N] [--format ...]
 
 # List movies showing at a specific cinema
-cineamo cinema-movies --cinema-id <ID> [--query Q] [--region R] [--per-page N] [--all] [--limit N] [--format ...]
+cinemaquery cinema-movies --cinema-id <ID> [--query Q] [--region R] [--per-page N] [--all] [--limit N] [--format ...]
 
 # List showtimes/screenings for a cinema
 # Default: shows only the specified date (single day)
-cineamo showtimes --cinema-id <ID> [--date YYYY-MM-DD] [--per-page N] [--page N] [--format rich|table|json]
+cinemaquery showtimes --cinema-id <ID> [--date YYYY-MM-DD] [--per-page N] [--page N] [--format rich|table|json]
 
 # With --all: shows all showtimes from date onwards (multiple days)
-cineamo showtimes --cinema-id <ID> --date YYYY-MM-DD --all [--limit N] [--format rich|table|json]
+cinemaquery showtimes --cinema-id <ID> --date YYYY-MM-DD --all [--limit N] [--format rich|table|json]
 ```
 
 ### Movie Commands
 ```bash
 # List movies with optional query
-cineamo movies [--query Q] [--per-page N] [--page N] [--all] [--limit N] [--format ...]
+cinemaquery movies [--query Q] [--per-page N] [--page N] [--all] [--limit N] [--format ...]
 
 # Advanced movie search
-cineamo movies-search [--query Q] [--region R] [--release-date-start YYYY-MM-DD] [--release-date-end YYYY-MM-DD] [--type T] [--per-page N] [--all] [--limit N] [--format ...]
+cinemaquery movies-search [--query Q] [--region R] [--release-date-start YYYY-MM-DD] [--release-date-end YYYY-MM-DD] [--type T] [--per-page N] [--all] [--limit N] [--format ...]
 
 # Get single movie detail
-cineamo movie --id <ID> [--format rich|json]
+cinemaquery movie --id <ID> [--format rich|json]
 ```
 
 ### Utility Commands
 ```bash
 # Raw GET request to any API path
-cineamo get /path -p key=value [-p key=value ...] [--format json|rich]
+cinemaquery get /path -p key=value [-p key=value ...] [--format json|rich]
 
 # Configuration management
-cineamo config set <key> <value>
-cineamo config get <key>
-cineamo config show
+cinemaquery config set <key> <value>
+cinemaquery config get <key>
+cinemaquery config show
 
 # Shell completions
-cineamo completions bash|zsh|fish
+cinemaquery completions bash|zsh|fish
 ```
 
 ## Architecture
@@ -196,11 +196,11 @@ The `--verbose` and `--quiet` flags are defined but not yet implemented. They're
 ### Shell Completions
 
 Click's built-in completion system via environment variables:
-- `_CINEAMO_COMPLETE=bash_complete cineamo`
-- `_CINEAMO_COMPLETE=zsh_complete cineamo`
-- `_CINEAMO_COMPLETE=fish_complete cineamo`
+- `_CINEMAQUERY_COMPLETE=bash_complete cinemaquery`
+- `_CINEMAQUERY_COMPLETE=zsh_complete cinemaquery`
+- `_CINEMAQUERY_COMPLETE=fish_complete cinemaquery`
 
-Access via `cineamo completions bash|zsh|fish` commands that output the appropriate eval line.
+Access via `cinemaquery completions bash|zsh|fish` commands that output the appropriate eval line.
 
 ## Key Patterns
 
@@ -235,9 +235,9 @@ This pattern can be reused for any time-range queries where users typically want
 
 Config keys can be set/read via:
 ```bash
-cineamo config set base_url https://api.example.com
-cineamo config get base_url
-cineamo config show
+cinemaquery config set base_url https://api.example.com
+cinemaquery config get base_url
+cinemaquery config show
 ```
 
 Common config keys:
@@ -390,8 +390,8 @@ The workflow runs on:
 ### Common Issues
 
 **API Connection Errors:**
-- Check base URL with `cineamo config get base_url`
-- Test with raw GET: `cineamo get /cinemas -p per_page=1`
+- Check base URL with `cinemaquery config get base_url`
+- Test with raw GET: `cinemaquery get /cinemas -p per_page=1`
 - Verify timeout setting (default 15s may be too short for slow connections)
 
 **Pagination Issues:**
@@ -406,5 +406,5 @@ The workflow runs on:
 
 **Config Not Loaded:**
 - Check file exists at `~/.config/cinemaquery/config.toml`
-- Verify TOML syntax with `cineamo config show`
+- Verify TOML syntax with `cinemaquery config show`
 - Remember CLI flags and env vars override config
