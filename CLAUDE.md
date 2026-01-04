@@ -81,7 +81,11 @@ cineamo cinemas-near --lat <LAT> --lon <LON> --distance <M> [--per-page N] [--al
 cineamo cinema-movies --cinema-id <ID> [--query Q] [--region R] [--per-page N] [--all] [--limit N] [--format ...]
 
 # List showtimes/screenings for a cinema
-cineamo showtimes --cinema-id <ID> [--date YYYY-MM-DD] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]
+# Default: shows only the specified date (single day)
+cineamo showtimes --cinema-id <ID> [--date YYYY-MM-DD] [--per-page N] [--page N] [--format rich|table|json]
+
+# With --all: shows all showtimes from date onwards (multiple days)
+cineamo showtimes --cinema-id <ID> --date YYYY-MM-DD --all [--limit N] [--format rich|table|json]
 ```
 
 ### Movie Commands
@@ -215,6 +219,17 @@ Access via `cineamo completions bash|zsh|fish` commands that output the appropri
 - Both pagination modes (`--all` with `--limit`, or `--page`)
 - Rich table and JSON output
 - Proper typing and error handling
+
+**Showtimes Command Pattern:**
+
+The `showtimes` command demonstrates a date-range pattern:
+- **Without `--all`**: Automatically sets `endDatetime` to limit results to a single day
+- **With `--all`**: No `endDatetime` parameter, streams all showtimes from date onwards
+- Uses `timedelta` to calculate end date (start + 1 day)
+- API endpoint: `/showings?cinemaIds[]=<id>&startDatetime=<ISO8601>&endDatetime=<ISO8601>`
+- Discovered via browser automation monitoring network requests on cineamo.com
+
+This pattern can be reused for any time-range queries where users typically want single-day results but may need multi-day streaming.
 
 ### Configuration
 

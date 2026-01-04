@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
 import click
@@ -624,7 +624,12 @@ def cinema_movies(
 )
 @click.option("--per-page", type=int, default=20, show_default=True)
 @click.option("--page", type=int, default=1, show_default=True)
-@click.option("--all", "list_all", is_flag=True, help="Stream all pages")
+@click.option(
+    "--all",
+    "list_all",
+    is_flag=True,
+    help="Stream all showtimes from date onwards (default: single day only)",
+)
 @click.option(
     "--limit",
     type=int,
@@ -673,6 +678,11 @@ def list_showtimes(
         "page": page,
     }
 
+    # If not using --all, limit to single day by setting endDatetime
+    if not list_all:
+        end_datetime = start_datetime + timedelta(days=1)
+        params["endDatetime"] = end_datetime.isoformat().replace("+00:00", "Z")
+
     if list_all:
         count = 0
         rows = []
@@ -703,8 +713,10 @@ def list_showtimes(
             }
             console.print_json(data=output)
         else:
+            date_str = start_datetime.strftime("%Y-%m-%d")
+            title = f"Showtimes for cinema {cinema_id} from {date_str} (Total: {count})"
             table = Table(
-                title=f"Showtimes for cinema {cinema_id} (Total: {count})",
+                title=title,
                 header_style="bold cyan",
                 show_lines=False,
             )
@@ -732,8 +744,9 @@ def list_showtimes(
         return
 
     # Rich table output
+    date_str = start_datetime.strftime("%Y-%m-%d")
     table = Table(
-        title=f"Showtimes for cinema {cinema_id} - Page {result.page}",
+        title=f"Showtimes for cinema {cinema_id} on {date_str} - Page {result.page}",
         header_style="bold cyan",
         show_lines=False,
     )
