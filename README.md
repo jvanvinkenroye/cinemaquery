@@ -2,7 +2,7 @@
 
 CLI tool to query the public Cineamo API with rich table output and JSON formatting.
 
-[![CI](https://github.com/jvanvinkenroye/cineamoquery/actions/workflows/ci.yml/badge.svg)](https://github.com/jvanvinkenroye/cineamoquery/actions/workflows/ci.yml)
+[![CI](https://github.com/jvanvinkenroye/cinemaquery/actions/workflows/ci.yml/badge.svg)](https://github.com/jvanvinkenroye/cinemaquery/actions/workflows/ci.yml)
 
 ## Quick Start (No Installation Required)
 
@@ -10,13 +10,13 @@ Run the tool directly with `uvx` without installing:
 
 ```bash
 # Run from GitHub (always uses latest version)
-uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamo --help
+uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cineamo --help
 
 # Get showtimes for a cinema
-uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamo showtimes --cinema-id 781
+uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cineamo showtimes --cinema-id 781
 
 # List cinemas in a city
-uvx --from git+https://github.com/jvanvinkenroye/cineamoquery cineamo cinemas --city Berlin --per-page 5
+uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cineamo cinemas --city Berlin --per-page 5
 
 # Run from local directory (for development)
 uvx --from . cineamo --help
@@ -42,7 +42,7 @@ uv pip install -e ".[dev]"
 ### Using uv tool (recommended for regular use)
 
 ```bash
-uv tool install git+https://github.com/jvanvinkenroye/cineamoquery
+uv tool install git+https://github.com/jvanvinkenroye/cinemaquery
 ```
 
 After installation, the `cineamo` command is available globally.
@@ -50,7 +50,7 @@ After installation, the `cineamo` command is available globally.
 ### Using pip
 
 ```bash
-pip install git+https://github.com/jvanvinkenroye/cineamoquery
+pip install git+https://github.com/jvanvinkenroye/cinemaquery
 ```
 
 ## Usage Examples
@@ -162,6 +162,37 @@ GitHub Actions runs:
 - Mypy type checking
 - Pytest (46 tests)
 - CLI smoke test
+
+## Troubleshooting
+
+### uvx fails with "Git operation failed"
+
+If `uvx --from git+https://...` fails on your system, try these alternatives:
+
+**Option 1: Install permanently with uv tool**
+```bash
+uv tool install git+https://github.com/jvanvinkenroye/cinemaquery
+cineamo --help
+```
+
+**Option 2: Use pip**
+```bash
+pip install git+https://github.com/jvanvinkenroye/cinemaquery
+cineamo --help
+```
+
+**Option 3: Clone and install locally**
+```bash
+git clone https://github.com/jvanvinkenroye/cinemaquery.git
+cd cinemaquery
+uv tool install .
+# or: pip install .
+```
+
+**Common causes:**
+- Git not installed on the system
+- Network/firewall blocking GitHub access
+- Corporate proxy settings
 
 ## Features
 
