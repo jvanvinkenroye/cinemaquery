@@ -922,6 +922,41 @@ def get_movie(ctx: click.Context, movie_id: int, fmt: str) -> None:
     console.print(table)
 
 
+@main.command("interactive")
+@click.option(
+    "--type",
+    "start_type",
+    type=click.Choice(["cinema", "movie"], case_sensitive=False),
+    default=None,
+    help="Start directly with cinema or movie search",
+)
+@click.pass_context
+@handle_api_errors
+def interactive_mode(ctx: click.Context, start_type: str | None) -> None:
+    """Interactive mode with fuzzy selection menus."""
+    from .interactive import run_interactive  # noqa: PLC0415
+
+    run_interactive(ctx.obj["client"], start_type)
+
+
+# Alias 'i' for 'interactive'
+@main.command("i", hidden=True)
+@click.option(
+    "--type",
+    "start_type",
+    type=click.Choice(["cinema", "movie"], case_sensitive=False),
+    default=None,
+    help="Start directly with cinema or movie search",
+)
+@click.pass_context
+@handle_api_errors
+def interactive_mode_alias(ctx: click.Context, start_type: str | None) -> None:
+    """Interactive mode (alias for 'interactive')."""
+    from .interactive import run_interactive  # noqa: PLC0415
+
+    run_interactive(ctx.obj["client"], start_type)
+
+
 @main.result_callback()
 @click.pass_context
 def finalize(ctx: click.Context, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]

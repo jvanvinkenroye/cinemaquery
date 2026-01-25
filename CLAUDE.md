@@ -39,10 +39,11 @@ cinemaquery --help
 cinemaquery cinemas --per-page 1 --format json
 ```
 
-**Test Suite:** The project has comprehensive test coverage with 46 tests across three test files:
+**Test Suite:** The project has comprehensive test coverage with 67 tests across four test files:
 - `tests/test_client.py` - 12 tests for CineamoClient (HAL-JSON parsing, pagination, streaming)
 - `tests/test_cli.py` - 20 tests for CLI commands (all commands, formats, error handling)
 - `tests/test_config.py` - 14 tests for configuration (precedence, persistence, operations)
+- `tests/test_interactive.py` - 21 tests for interactive mode (formatting, loading, CLI commands)
 
 **Test Patterns:**
 - Use pytest fixtures for CineamoClient instances (`conftest.py`)
@@ -100,6 +101,26 @@ cinemaquery movies-search [--query Q] [--region R] [--release-date-start YYYY-MM
 cinemaquery movie --id <ID> [--format rich|json]
 ```
 
+### Interactive Mode
+```bash
+# Start interactive mode with main menu
+cinemaquery interactive
+
+# Start directly with cinema search
+cinemaquery interactive --type cinema
+
+# Start directly with movie search
+cinemaquery interactive --type movie
+
+# Shorthand alias
+cinemaquery i
+```
+
+The interactive mode provides a fuzzy-search menu interface using `simple-term-menu`:
+- Arrow keys to navigate, type to filter (fuzzy search)
+- Enter to select, Esc to cancel/go back
+- Workflow chains: Cinema -> Actions (showtimes/movies/details)
+
 ### Utility Commands
 ```bash
 # Raw GET request to any API path
@@ -131,6 +152,13 @@ cinemaquery completions bash|zsh|fish
    - Client instance created once in main group, passed to subcommands via context
    - Client cleanup handled in `@main.result_callback()` to ensure httpx client is properly closed
    - Configuration stored in `~/.config/cinemaquery/config.toml`
+
+3. **Interactive Layer** (`src/cinemaquery/interactive.py`):
+   - Uses `simple-term-menu` for fuzzy search menus
+   - Lazy-loaded from CLI to avoid importing unless needed
+   - Workflow-based: cinema workflow, movie workflow with action chains
+   - Progress spinners via Rich during API data loading
+   - Helper functions for formatting menu entries and displaying results
 
 ### Page Dataclass Structure
 
