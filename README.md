@@ -1,6 +1,6 @@
 # cinemaquery
 
-CLI tool to query the public Cineamo API with rich table output and JSON formatting.
+CLI tool to query the public Cineamo API with rich table output, JSON formatting, and an interactive TUI mode.
 
 [![CI](https://github.com/jvanvinkenroye/cinemaquery/actions/workflows/ci.yml/badge.svg)](https://github.com/jvanvinkenroye/cinemaquery/actions/workflows/ci.yml)
 
@@ -10,16 +10,16 @@ Run the tool directly with `uvx` without installing:
 
 ```bash
 # Run from GitHub (always uses latest version)
-uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cinemaquery--help
+uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cinemaquery --help
+
+# Interactive mode (TUI with fuzzy search)
+uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cinemaquery interactive
 
 # Get showtimes for a cinema
-uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cinemaqueryshowtimes --cinema-id 781
-
-# List cinemas in a city
-uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cinemaquerycinemas --city Berlin --per-page 5
+uvx --from git+https://github.com/jvanvinkenroye/cinemaquery cinemaquery showtimes --cinema-id 781
 
 # Run from local directory (for development)
-uvx --from . cinemaquery--help
+uvx --from . cinemaquery --help
 ```
 
 **Note:** The `uvx` command downloads and runs the tool in an isolated environment without installing it globally. Perfect for trying it out or running occasionally.
@@ -45,7 +45,7 @@ uv pip install -e ".[dev]"
 uv tool install git+https://github.com/jvanvinkenroye/cinemaquery
 ```
 
-After installation, the `cineamo` command is available globally.
+After installation, the `cinemaquery` command is available globally.
 
 ### Using pip
 
@@ -56,47 +56,65 @@ pip install git+https://github.com/jvanvinkenroye/cinemaquery
 ## Usage Examples
 
 ```bash
-# Get help
-cinemaquery--help
+# Interactive TUI mode (recommended for exploration)
+cinemaquery interactive
+cinemaquery interactive --type cinema  # start directly with cinema search
+cinemaquery interactive --type movie   # start directly with movie search
+cinemaquery i                          # short alias
 
 # List cinemas in Berlin
-cinemaquerycinemas --city Berlin --per-page 5
+cinemaquery cinemas --city Berlin --per-page 5
 
 # Search for movies
-cinemaquerymovies --query Dune --per-page 5
+cinemaquery movies --query Dune --per-page 5
 
 # Get detailed cinema info
-cinemaquerycinema --id 123
+cinemaquery cinema --id 123
 
 # Get showtimes for a cinema (single day)
-cinemaqueryshowtimes --cinema-id 781 --date 2026-01-04
+cinemaquery showtimes --cinema-id 781 --date 2026-01-04
 
 # Get all showtimes from a date onwards
-cinemaqueryshowtimes --cinema-id 781 --date 2026-01-04 --all
+cinemaquery showtimes --cinema-id 781 --date 2026-01-04 --all
 
 # Enable verbose logging
-cinemaquery--verbose cinemas --city Paris
+cinemaquery --verbose cinemas --city Paris
 ```
 
 ## Commands
 
+### Interactive Mode
+- `cinemaquery interactive [--type cinema|movie]` - Interactive TUI with fuzzy search menus
+- `cinemaquery i` - Short alias for interactive mode
+
+**Keyboard shortcuts in interactive mode:**
+- `[c]` - Search cinemas
+- `[m]` - Search movies
+- `[b]` - Back to previous menu
+- `[d]` - Show details
+- `[q]` / `Ctrl+C` - Quit
+
+**Workflows:**
+- **Cinema workflow:** Search by city → select cinema → view showtimes, movies, or details
+- **Movie workflow:** Search by title → select movie → find cinemas showing it → view showtimes
+
 ### Cinema Commands
-- `cinemaquerycinemas [--city <CITY>] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]` - List cinemas with optional filters
-- `cinemaquerycinema --id <ID> [--format rich|json]` - Get single cinema detail
-- `cinemaquerycinemas-near --lat <LAT> --lon <LON> --distance <M> [...]` - Find cinemas near coordinates
-- `cinemaquerycinema-movies --cinema-id <ID> [--query Q] [--region R] [...]` - List movies at a cinema
-- `cinemaqueryshowtimes --cinema-id <ID> [--date YYYY-MM-DD] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]` - List showtimes for a cinema (single day by default, use `--all` for multiple days)
+- `cinemaquery cinemas [--city <CITY>] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]` - List cinemas with optional filters
+- `cinemaquery cinema --id <ID> [--format rich|json]` - Get single cinema detail
+- `cinemaquery cinemas-near --lat <LAT> --lon <LON> --distance <M> [...]` - Find cinemas near coordinates
+- `cinemaquery cinema-movies --cinema-id <ID> [--query Q] [--region R] [...]` - List movies at a cinema
+- `cinemaquery showtimes --cinema-id <ID> [--date YYYY-MM-DD] [--per-page N] [--page N] [--all] [--limit N] [--format rich|table|json]` - List showtimes for a cinema (single day by default, use `--all` for multiple days)
 
 ### Movie Commands
-- `cinemaquerymovies [--query Q] [--per-page N] [--page N] [--all] [--limit N] [--format ...]` - List movies with optional query
-- `cinemaquerymovies-search [--query Q] [--region R] [--release-date-start YYYY-MM-DD] [...]` - Advanced movie search
-- `cinemaquerymovie --id <ID> [--format rich|json]` - Get single movie detail
+- `cinemaquery movies [--query Q] [--per-page N] [--page N] [--all] [--limit N] [--format ...]` - List movies with optional query
+- `cinemaquery movies-search [--query Q] [--region R] [--release-date-start YYYY-MM-DD] [...]` - Advanced movie search
+- `cinemaquery movie --id <ID> [--format rich|json]` - Get single movie detail
 
 ### Utility Commands
-- `cinemaqueryget /path -p key=value [-p key=value ...] [--format json|rich]` - Raw GET request to any API path
-- `cinemaqueryconfig set <key> <value>` - Set configuration value
-- `cinemaqueryconfig get <key>` - Get configuration value
-- `cinemaqueryconfig show` - Show all configuration
+- `cinemaquery get /path -p key=value [-p key=value ...] [--format json|rich]` - Raw GET request to any API path
+- `cinemaquery config set <key> <value>` - Set configuration value
+- `cinemaquery config get <key>` - Get configuration value
+- `cinemaquery config show` - Show all configuration
 
 ### Global Flags
 - `--verbose` - Enable debug logging
@@ -117,10 +135,10 @@ Configuration is stored in `~/.config/cinemaquery/config.toml`.
 **Example:**
 ```bash
 # Set custom API URL
-cinemaqueryconfig set base_url https://api.example.com
+cinemaquery config set base_url https://api.example.com
 
 # Override with environment variable
-CINEAMO_BASE_URL=https://test.api.com cinemaquerycinemas
+CINEAMO_BASE_URL=https://test.api.com cinemaquery cinemas
 
 # Override with CLI flag (highest priority)
 cinemaquery --base-url https://dev.api.com cinemas
@@ -160,7 +178,7 @@ mypy src
 GitHub Actions runs:
 - Ruff linting
 - Mypy type checking
-- Pytest (46 tests)
+- Pytest (67 tests)
 - CLI smoke test
 
 ## Troubleshooting
@@ -172,13 +190,13 @@ If `uvx --from git+https://...` fails on your system, try these alternatives:
 **Option 1: Install permanently with uv tool**
 ```bash
 uv tool install git+https://github.com/jvanvinkenroye/cinemaquery
-cinemaquery--help
+cinemaquery --help
 ```
 
 **Option 2: Use pip**
 ```bash
 pip install git+https://github.com/jvanvinkenroye/cinemaquery
-cinemaquery--help
+cinemaquery --help
 ```
 
 **Option 3: Clone and install locally**
@@ -196,13 +214,15 @@ uv tool install .
 
 ## Features
 
+- ✅ Interactive TUI mode with fuzzy search menus
 - ✅ Rich table output with colored columns
 - ✅ JSON output for scripting
 - ✅ Automatic pagination with `--all` flag
+- ✅ Single-day showtimes by default, multi-day with `--all`
 - ✅ Configurable API base URL and timeout
 - ✅ User-friendly error messages
 - ✅ Verbose/quiet logging modes
 - ✅ Shell completions for Bash/Zsh/Fish
-- ✅ Comprehensive test suite (46 tests)
+- ✅ Comprehensive test suite (67 tests)
 - ✅ Full type checking with mypy
 - ✅ Python 3.10+ compatibility

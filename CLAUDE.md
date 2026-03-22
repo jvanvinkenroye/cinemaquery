@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`cinemaquery` is a CLI tool to query the public Cineamo API. It provides commands to search cinemas, movies, and related data with rich table output or JSON formatting.
+`cinemaquery` is a CLI tool to query the public Cineamo API. It provides commands to search cinemas, movies, and related data with rich table output, JSON formatting, and an interactive TUI mode with fuzzy search menus.
 
 ## Development Commands
 
