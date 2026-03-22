@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, cast
 
 import click
@@ -615,12 +615,50 @@ def cinema_movies(
     console.print(table)
 
 
+def _to_api_dt(dt: datetime) -> str:
+    return dt.isoformat().replace("+00:00", "Z")
+
+
+def _showing_to_row(showing: dict[str, Any]) -> tuple[str, str, str, str, str]:
+    dt_str = showing.get("startDatetime") or ""
+    time_str = (
+        datetime.fromisoformat(dt_str.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M")
+        if dt_str
+        else "N/A"
+    )
+    return (
+        time_str,
+        str(showing.get("name", "")),
+        str(showing.get("language", "")),
+        "OV" if showing.get("isOriginalLanguage") else "",
+        str(showing.get("id", "")),
+    )
+
+
+def _render_showtime_table(rows: list[tuple[str, ...]], title: str) -> Table:
+    table = Table(title=title, header_style="bold cyan", show_lines=False)
+    table.add_column("Date/Time", style="green", no_wrap=True)
+    table.add_column("Movie", style="bold")
+    table.add_column("Language", style="yellow", no_wrap=True)
+    table.add_column("Original", style="magenta", no_wrap=True)
+    table.add_column("ID", justify="right", style="dim", no_wrap=True)
+    for row in rows:
+        table.add_row(*row)
+    return table
+
+
 @main.command("showtimes")
 @click.option("--cinema-id", type=int, required=True, help="Cinema ID")
 @click.option(
     "--date",
     type=str,
-    help="Date in YYYY-MM-DD format (default: today)",
+    help="Start date in YYYY-MM-DD format (default: today)",
+)
+@click.option(
+    "--end-date",
+    type=str,
+    default=None,
+    help="End date in YYYY-MM-DD format (inclusive). Implies --all.",
 )
 @click.option("--per-page", type=int, default=20, show_default=True)
 @click.option("--page", type=int, default=1, show_default=True)
@@ -651,6 +689,7 @@ def list_showtimes(
     ctx: click.Context,
     cinema_id: int,
     date: str | None,
+    end_date: str | None,
     per_page: int,
     page: int,
     list_all: bool,
@@ -660,114 +699,81 @@ def list_showtimes(
     """List showtimes/screenings for a specific cinema."""
     client: CineamoClient = ctx.obj["client"]
 
-    # Use today's date if not specified
-    if date is None:
-        start_datetime = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-    else:
-        # Parse date and set to midnight UTC
-        start_datetime = datetime.fromisoformat(date).replace(
-            hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc
-        )
+    # Use local timezone so date strings mean local midnight, not UTC midnight
+    local_tz = datetime.now().astimezone().tzinfo
 
+    def _parse_date(value: str, param: str) -> datetime:
+        try:
+            return datetime.fromisoformat(value).replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=local_tz
+            )
+        except ValueError as err:
+            raise click.BadParameter(
+                f"'{value}' is not a valid date, expected YYYY-MM-DD",
+                param_hint=param,
+            ) from err
+
+    start_datetime = (
+        datetime.now(local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+        if date is None
+        else _parse_date(date, "--date")
+    )
+
+    end_datetime: datetime | None = None
+    if end_date is not None:
+        # end-date is inclusive: add 1 day to include all showings on that day
+        end_datetime = _parse_date(end_date, "--end-date") + timedelta(days=1)
+        list_all = True
+
+    date_str = start_datetime.strftime("%Y-%m-%d")
     params: dict[str, Any] = {
         "cinemaIds[]": cinema_id,
-        "startDatetime": start_datetime.isoformat().replace("+00:00", "Z"),
+        "startDatetime": _to_api_dt(start_datetime),
         "per_page": per_page,
         "page": page,
     }
 
-    # If not using --all, limit to single day by setting endDatetime
-    if not list_all:
-        end_datetime = start_datetime + timedelta(days=1)
-        params["endDatetime"] = end_datetime.isoformat().replace("+00:00", "Z")
-
     if list_all:
-        count = 0
-        rows = []
+        if end_datetime is not None:
+            params["endDatetime"] = _to_api_dt(end_datetime)
         _ps = dict(params)
         _ps.pop("per_page", None)
         _ps.pop("page", None)
+        rows: list[tuple[str, ...]] = []
         for showing in client.stream_all("/showings", per_page=per_page, **_ps):
-            start_dt = datetime.fromisoformat(
-                showing["startDatetime"].replace("Z", "+00:00")
-            )
-            rows.append(
-                (
-                    start_dt.strftime("%Y-%m-%d %H:%M"),
-                    str(showing.get("name", "")),
-                    str(showing.get("language", "")),
-                    "OV" if showing.get("isOriginalLanguage") else "",
-                    str(showing.get("id", "")),
-                )
-            )
-            count += 1
-            if limit and count >= limit:
+            rows.append(_showing_to_row(showing))
+            if limit and len(rows) >= limit:
                 break
 
         if fmt.lower() == "json":
             keys = ["datetime", "name", "language", "original", "id"]
-            output: dict[str, Any] = {
+            console.print_json(data={
                 "items": [dict(zip(keys, row, strict=True)) for row in rows]
-            }
-            console.print_json(data=output)
+            })
         else:
-            date_str = start_datetime.strftime("%Y-%m-%d")
-            title = f"Showtimes for cinema {cinema_id} from {date_str} (Total: {count})"
-            table = Table(
-                title=title,
-                header_style="bold cyan",
-                show_lines=False,
+            end_label = end_date or "onwards"
+            title = (
+                f"Showtimes for cinema {cinema_id}"
+                f" {date_str} to {end_label} (Total: {len(rows)})"
             )
-            table.add_column("Date/Time", style="green", no_wrap=True)
-            table.add_column("Movie", style="bold")
-            table.add_column("Language", style="yellow", no_wrap=True)
-            table.add_column("Original", style="magenta", no_wrap=True)
-            table.add_column("ID", justify="right", style="dim", no_wrap=True)
-            for row in rows:
-                table.add_row(*row)
-            console.print(table)
+            console.print(_render_showtime_table(rows, title))
         return
 
-    # Single page
+    params["endDatetime"] = _to_api_dt(start_datetime + timedelta(days=1))
     result = client.list_paginated("/showings", **params)
 
     if fmt.lower() == "json":
-        json_output: dict[str, Any] = {
+        console.print_json(data={
             "items": result.items,
             "total_items": result.total_items,
             "page": result.page,
             "page_count": result.page_count,
-        }
-        console.print_json(data=json_output)
+        })
         return
 
-    # Rich table output
-    date_str = start_datetime.strftime("%Y-%m-%d")
-    table = Table(
-        title=f"Showtimes for cinema {cinema_id} on {date_str} - Page {result.page}",
-        header_style="bold cyan",
-        show_lines=False,
-    )
-    table.add_column("Date/Time", style="green", no_wrap=True)
-    table.add_column("Movie", style="bold")
-    table.add_column("Language", style="yellow", no_wrap=True)
-    table.add_column("Original", style="magenta", no_wrap=True)
-    table.add_column("ID", justify="right", style="dim", no_wrap=True)
-
-    for showing in result.items:
-        start_dt = datetime.fromisoformat(
-            showing["startDatetime"].replace("Z", "+00:00")
-        )
-        table.add_row(
-            start_dt.strftime("%Y-%m-%d %H:%M"),
-            str(showing.get("name", "")),
-            str(showing.get("language", "")),
-            "OV" if showing.get("isOriginalLanguage") else "",
-            str(showing.get("id", "")),
-        )
-    console.print(table)
+    title = f"Showtimes for cinema {cinema_id} on {date_str} - Page {result.page}"
+    rows = [_showing_to_row(s) for s in result.items]
+    console.print(_render_showtime_table(rows, title))
 
 
 @main.command("movies-search")
