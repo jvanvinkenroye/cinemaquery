@@ -25,6 +25,16 @@ console = Console()
 logger = logging.getLogger(__name__)
 
 
+def _http_error_message(status_code: int) -> str:
+    if status_code == 404:  # noqa: PLR2004
+        return "Resource not found"
+    if status_code == 429:  # noqa: PLR2004
+        return "Rate limit exceeded. Please try again later."
+    if status_code >= 500:  # noqa: PLR2004
+        return f"Server error ({status_code}). Please try again later."
+    return f"API returned {status_code}"
+
+
 def handle_api_errors(func):  # type: ignore[no-untyped-def]
     """Decorator to handle API errors with user-friendly messages."""
 
@@ -35,29 +45,8 @@ def handle_api_errors(func):  # type: ignore[no-untyped-def]
         try:
             return func(*args, **kwargs)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:  # noqa: PLR2004
-                console.print(
-                    "[bold red]Error:[/bold red] Resource not found", style="red"
-                )
-            elif e.response.status_code == 429:  # noqa: PLR2004
-                console.print(
-                    "[bold red]Error:[/bold red] Rate limit exceeded. "
-                    "Please try again later.",
-                    style="red",
-                )
-            elif e.response.status_code >= 500:  # noqa: PLR2004
-                console.print(
-                    f"[bold red]Error:[/bold red] Server error "
-                    f"({e.response.status_code}). Please try again later.",
-                    style="red",
-                )
-            else:
-                console.print(
-                    f"[bold red]Error:[/bold red] API returned "
-                    f"{e.response.status_code}",
-                    style="red",
-                )
-
+            msg = _http_error_message(e.response.status_code)
+            console.print(f"[bold red]Error:[/bold red] {msg}", style="red")
             if verbose:
                 logger.exception("Full error details:")
             raise click.Abort() from e
@@ -71,7 +60,6 @@ def handle_api_errors(func):  # type: ignore[no-untyped-def]
                 logger.exception("Full error details:")
             raise click.Abort() from None
         except Exception:
-            # Re-raise unexpected errors to see full stack trace
             if verbose:
                 logger.exception("Unexpected error:")
             raise
