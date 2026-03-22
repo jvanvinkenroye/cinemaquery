@@ -223,6 +223,31 @@ uv tool install .
 - ✅ User-friendly error messages
 - ✅ Verbose/quiet logging modes
 - ✅ Shell completions for Bash/Zsh/Fish
-- ✅ Comprehensive test suite (67 tests)
+- ✅ Date range queries with `--end-date`
+- ✅ Comprehensive test suite (72 tests)
 - ✅ Full type checking with mypy
 - ✅ Python 3.10+ compatibility
+
+## Claude Code Skill
+
+cinemaquery can be used as a [Claude Code](https://claude.ai/code) skill, allowing Claude to answer natural-language cinema queries automatically.
+
+### Installation
+
+```bash
+mkdir -p ~/.claude/skills/cinemaquery
+curl -o ~/.claude/skills/cinemaquery/SKILL.md \
+  https://raw.githubusercontent.com/jvanvinkenroye/cinemaquery/main/skill/SKILL.md
+```
+
+Or create `~/.claude/skills/cinemaquery/SKILL.md` manually — see [`skill/SKILL.md`](skill/SKILL.md) for the content.
+
+### Usage
+
+Once installed, Claude detects cinema-related questions automatically:
+
+> "Was läuft diese Woche im Kino in Stuttgart?"
+> "Was kommt nächste Woche im Corso?"
+> "Um was geht es bei Gelbe Briefe?"
+
+Claude will run the appropriate `cinemaquery` commands and present the results in a readable format.
