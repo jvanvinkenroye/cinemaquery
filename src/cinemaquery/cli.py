@@ -7,7 +7,7 @@ import os
 import sys
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, ParamSpec, TypeVar, cast
+from typing import Any, ParamSpec, TypeVar
 
 import click
 import httpx
@@ -22,7 +22,7 @@ else:
     import tomli as tomllib
 
 from .client import CineamoClient
-from .formatters import output_cinemas, output_movies
+from .formatters import output_cinemas, output_movies, render_movie_details
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ def main(
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    type=click.Choice(["rich", "json"], case_sensitive=False),
     default="rich",
     show_default=True,
     help="Output format",
@@ -217,12 +217,13 @@ def get_cinema(ctx: click.Context, cinema_id: int, fmt: str) -> None:
     if fmt == "json":
         click.echo(json.dumps(data, ensure_ascii=False, indent=2))
         return
-    table = Table(title=f"Cinema {cinema_id}", header_style="bold cyan")
-    table.add_column("Field", style="magenta", no_wrap=True)
-    table.add_column("Value")
-    for key in ("id", "name", "city", "countryCode", "slug", "ticketSystem", "email"):
-        table.add_row(key, str(data.get(key, "")))
-    console.print(table)
+    if not ctx.obj.get("quiet"):
+        table = Table(title=f"Cinema {cinema_id}", header_style="bold cyan")
+        table.add_column("Field", style="magenta", no_wrap=True)
+        table.add_column("Value")
+        for key in ("id", "name", "city", "countryCode", "slug", "ticketSystem", "email"):  # noqa: E501
+            table.add_row(key, str(data.get(key, "")))
+        console.print(table)
 
 
 @main.command("cinemas-near")
@@ -242,7 +243,7 @@ def get_cinema(ctx: click.Context, cinema_id: int, fmt: str) -> None:
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    type=click.Choice(["rich", "json"], case_sensitive=False),
     default="rich",
     show_default=True,
     help="Output format",
@@ -307,7 +308,7 @@ def cinemas_near(
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    type=click.Choice(["rich", "json"], case_sensitive=False),
     default="rich",
     show_default=True,
     help="Output format",
@@ -367,7 +368,7 @@ def list_movies(
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    type=click.Choice(["rich", "json"], case_sensitive=False),
     default="rich",
     show_default=True,
     help="Output format",
@@ -483,7 +484,7 @@ def _render_showtime_table(rows: list[tuple[str, ...]], title: str) -> Table:
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    type=click.Choice(["rich", "json"], case_sensitive=False),
     default="rich",
     show_default=True,
     help="Output format",
@@ -600,7 +601,7 @@ def list_showtimes(
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["table", "rich", "json"], case_sensitive=False),
+    type=click.Choice(["rich", "json"], case_sensitive=False),
     default="rich",
     show_default=True,
     help="Output format",
@@ -676,12 +677,7 @@ def get_movie(ctx: click.Context, movie_id: int, fmt: str) -> None:
     if fmt == "json":
         click.echo(json.dumps(data, ensure_ascii=False, indent=2))
         return
-    table = Table(title=f"Movie {movie_id}", header_style="bold cyan")
-    table.add_column("Field", style="magenta", no_wrap=True)
-    table.add_column("Value")
-    for key in ("id", "title", "region", "releaseDate", "runtime", "imdbId"):
-        table.add_row(key, str(data.get(key, "")))
-    console.print(table)
+    render_movie_details(data)
 
 
 @main.command("interactive")
@@ -778,15 +774,15 @@ def _config_path() -> str:
     return os.path.join(base, "config.toml")
 
 
-def _load_config() -> dict[str, str]:
+def _load_config() -> dict[str, Any]:
     path = _config_path()
     if not os.path.exists(path):
         return {}
     with open(path, "rb") as f:
-        return cast(dict[str, str], tomllib.load(f))
+        return tomllib.load(f)
 
 
-def _save_config(cfg: dict[str, str]) -> None:
+def _save_config(cfg: dict[str, Any]) -> None:
     with open(_config_path(), "wb") as f:
         f.write(tomli_w.dumps(cfg).encode())
 
@@ -799,6 +795,19 @@ def config_set(key: str, value: str) -> None:
     cfg[key] = value
     _save_config(cfg)
     click.echo(f"Set {key}")
+
+
+@config.command("unset")
+@click.argument("key")
+def config_unset(key: str) -> None:
+    """Remove a configuration key."""
+    cfg = _load_config()
+    if key not in cfg:
+        click.echo(f"Key '{key}' not set.")
+        return
+    del cfg[key]
+    _save_config(cfg)
+    click.echo(f"Unset {key}")
 
 
 @config.command("get")
@@ -822,16 +831,16 @@ def completions() -> None:
 @completions.command("bash")
 def completions_bash() -> None:
     """Output bash completion eval line."""
-    click.echo('eval "$( _CINEAMO_COMPLETE=bash_complete cineamo )"')
+    click.echo('eval "$(_CINEMAQUERY_COMPLETE=bash_source cinemaquery)"')
 
 
 @completions.command("zsh")
 def completions_zsh() -> None:
     """Output zsh completion eval line."""
-    click.echo('eval "$( _CINEAMO_COMPLETE=zsh_complete cineamo )"')
+    click.echo('eval "$(_CINEMAQUERY_COMPLETE=zsh_source cinemaquery)"')
 
 
 @completions.command("fish")
 def completions_fish() -> None:
     """Output fish completion eval line."""
-    click.echo("eval ( env _CINEAMO_COMPLETE=fish_complete cineamo )")
+    click.echo("eval (env _CINEMAQUERY_COMPLETE=fish_source cinemaquery)")

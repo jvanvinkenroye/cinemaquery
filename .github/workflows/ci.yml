@@ -37,6 +37,6 @@ jobs:
       - name: CLI smoke
         run: |
           source .venv/bin/activate
-          cineamo --help
-          cineamo cinemas --per-page 1 --format json | head -n 5
+          cinemaquery --help
+          cinemaquery cinemas --per-page 1 --format json | head -n 5
 

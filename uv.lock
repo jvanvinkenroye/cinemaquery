@@ -47,6 +47,7 @@ dev = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "tomli" },
 ]
 
 [package.metadata]
@@ -59,6 +60,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.15" },
     { name = "simple-term-menu", specifier = ">=1.6" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
+    { name = "tomli", marker = "extra == 'dev'", specifier = ">=2.0" },
     { name = "tomli-w", specifier = ">=1.0" },
 ]
 provides-extras = ["dev"]

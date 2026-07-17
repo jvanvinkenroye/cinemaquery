@@ -378,16 +378,192 @@ class TestCompletionsCommand:
         """Test bash completions."""
         result = runner.invoke(main, ["completions", "bash"])
         assert result.exit_code == 0
-        assert "bash_complete" in result.output
+        assert "_CINEMAQUERY_COMPLETE=bash_source" in result.output
+        assert "cinemaquery" in result.output
 
     def test_completions_zsh(self, runner):
         """Test zsh completions."""
         result = runner.invoke(main, ["completions", "zsh"])
         assert result.exit_code == 0
-        assert "zsh_complete" in result.output
+        assert "_CINEMAQUERY_COMPLETE=zsh_source" in result.output
+        assert "cinemaquery" in result.output
 
     def test_completions_fish(self, runner):
         """Test fish completions."""
         result = runner.invoke(main, ["completions", "fish"])
         assert result.exit_code == 0
-        assert "fish_complete" in result.output
+        assert "_CINEMAQUERY_COMPLETE=fish_source" in result.output
+        assert "cinemaquery" in result.output
+
+
+class TestCineasNearCommand:
+    """Test cinemas-near command."""
+
+    def test_cinemas_near_help(self, runner):
+        result = runner.invoke(main, ["cinemas-near", "--help"])
+        assert result.exit_code == 0
+        assert "--lat" in result.output
+        assert "--lon" in result.output
+        assert "--distance" in result.output
+
+    @patch("cinemaquery.cli.CineamoClient")
+    def test_cinemas_near_json_format(self, mock_client_class, runner):
+        mock_client = Mock()
+        mock_page = Page(
+            items=[{"id": 1, "name": "Near Cinema", "city": "Berlin", "countryCode": "DE"}],
+            total_items=1, page=1, page_count=1, next_url=None,
+        )
+        mock_client.list_paginated.return_value = mock_page
+        mock_client_class.return_value = mock_client
+
+        result = runner.invoke(
+            main, ["cinemas-near", "--lat", "52.5", "--lon", "13.4", "--distance", "5000", "--format", "json"]
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "items" in data
+
+    @patch("cinemaquery.cli.CineamoClient")
+    def test_cinemas_near_all_flag(self, mock_client_class, runner):
+        mock_client = Mock()
+        mock_client.stream_all.return_value = iter([
+            {"id": 1, "name": "Near Cinema", "city": "Berlin", "countryCode": "DE"}
+        ])
+        mock_client_class.return_value = mock_client
+
+        result = runner.invoke(
+            main,
+            ["cinemas-near", "--lat", "52.5", "--lon", "13.4", "--distance", "5000", "--all", "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert len(data["items"]) == 1
+
+
+class TestCinemaMoviesCommand:
+    """Test cinema-movies command."""
+
+    def test_cinema_movies_help(self, runner):
+        result = runner.invoke(main, ["cinema-movies", "--help"])
+        assert result.exit_code == 0
+        assert "--cinema-id" in result.output
+
+    @patch("cinemaquery.cli.CineamoClient")
+    def test_cinema_movies_json_format(self, mock_client_class, runner):
+        mock_client = Mock()
+        mock_page = Page(
+            items=[{"id": 1, "title": "Movie A", "releaseDate": "2024-01-01", "region": "DE"}],
+            total_items=1, page=1, page_count=1, next_url=None,
+        )
+        mock_client.list_paginated.return_value = mock_page
+        mock_client_class.return_value = mock_client
+
+        result = runner.invoke(main, ["cinema-movies", "--cinema-id", "42", "--format", "json"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "items" in data
+
+
+class TestMoviesSearchCommand:
+    """Test movies-search command."""
+
+    def test_movies_search_help(self, runner):
+        result = runner.invoke(main, ["movies-search", "--help"])
+        assert result.exit_code == 0
+        assert "--query" in result.output
+        assert "--region" in result.output
+
+    @patch("cinemaquery.cli.CineamoClient")
+    def test_movies_search_json_format(self, mock_client_class, runner):
+        mock_client = Mock()
+        mock_page = Page(
+            items=[{"id": 1, "title": "Inception", "releaseDate": "2010-07-16", "region": "DE"}],
+            total_items=1, page=1, page_count=1, next_url=None,
+        )
+        mock_client.list_paginated.return_value = mock_page
+        mock_client_class.return_value = mock_client
+
+        result = runner.invoke(
+            main, ["movies-search", "--query", "Inception", "--format", "json"]
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "items" in data
+
+
+class TestShowtimesAllFlag:
+    """Test showtimes --all streaming path."""
+
+    @patch("cinemaquery.cli.CineamoClient")
+    def test_showtimes_all_json(self, mock_client_class, runner):
+        mock_client = Mock()
+        mock_client.stream_all.return_value = iter([
+            {"id": 1, "name": "Film A", "startDatetime": "2026-03-23T18:00:00Z",
+             "language": "deu", "isOriginalLanguage": False}
+        ])
+        mock_client_class.return_value = mock_client
+
+        result = runner.invoke(
+            main, ["showtimes", "--cinema-id", "1", "--date", "2026-03-23", "--all", "--format", "json"]
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert len(data["items"]) == 1
+
+    @patch("cinemaquery.cli.CineamoClient")
+    def test_showtimes_end_date_implies_all(self, mock_client_class, runner):
+        mock_client = Mock()
+        mock_client.stream_all.return_value = iter([])
+        mock_client_class.return_value = mock_client
+
+        result = runner.invoke(
+            main,
+            ["showtimes", "--cinema-id", "1", "--date", "2026-03-23", "--end-date", "2026-03-24", "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        mock_client.stream_all.assert_called_once()
+
+
+class TestRateLimitError:
+    """Test 429 rate-limit error handling."""
+
+    @patch("cinemaquery.cli.CineamoClient")
+    def test_429_returns_rate_limit_message(self, mock_client_class, runner):
+        mock_client = Mock()
+        mock_client.list_paginated.side_effect = httpx.HTTPStatusError(
+            "429 Too Many Requests",
+            request=Mock(),
+            response=Mock(status_code=429),
+        )
+        mock_client_class.return_value = mock_client
+
+        result = runner.invoke(main, ["cinemas"])
+
+        assert result.exit_code == 1
+        assert "Rate limit exceeded" in result.output
+
+
+class TestConfigUnset:
+    """Test config unset command."""
+
+    def test_config_unset_existing_key(self, runner):
+        with runner.isolated_filesystem():
+            runner.invoke(main, ["config", "set", "base_url", "https://test.com"])
+            result = runner.invoke(main, ["config", "unset", "base_url"])
+            assert result.exit_code == 0
+            assert "Unset base_url" in result.output
+
+            result = runner.invoke(main, ["config", "get", "base_url"])
+            assert result.output.strip() == ""
+
+    def test_config_unset_missing_key(self, runner):
+        with runner.isolated_filesystem():
+            result = runner.invoke(main, ["config", "unset", "nonexistent"])
+            assert result.exit_code == 0
+            assert "not set" in result.output

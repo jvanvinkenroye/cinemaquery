@@ -10,6 +10,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from simple_term_menu import TerminalMenu  # type: ignore[import-untyped]
 
+from .formatters import render_movie_details
+
 if TYPE_CHECKING:
     from .client import CineamoClient
 
@@ -267,57 +269,10 @@ def display_cinema_details(client: CineamoClient, cinema_id: int) -> None:
     console.print(table)
 
 
-def _format_runtime(minutes: int | None) -> str:
-    """Format runtime in hours and minutes."""
-    if not minutes:
-        return ""
-    hours, mins = divmod(minutes, 60)
-    if hours:
-        return f"{hours}h {mins}min ({minutes} min)"
-    return f"{mins} min"
-
-
-def _format_genres(genres: list[dict[str, Any]] | None) -> str:
-    """Format genres list."""
-    if not genres:
-        return ""
-    return ", ".join(g.get("name", "") for g in genres if g.get("name"))
-
-
 def display_movie_details(client: CineamoClient, movie_id: int) -> None:
     """Display details for a movie."""
     data = client.get_json(f"/movies/{movie_id}")
-
-    title = data.get("title", "Unknown")
-    original_title = data.get("originalTitle", "")
-
-    console.print()
-    console.print(f"[bold cyan]{title}[/bold cyan]")
-    if original_title and original_title != title:
-        console.print(f"[dim]({original_title})[/dim]")
-    console.print()
-
-    # Main info table
-    table = Table(show_header=False, box=None, padding=(0, 2))
-    table.add_column("Field", style="magenta", no_wrap=True)
-    table.add_column("Value")
-
-    table.add_row("Runtime", _format_runtime(data.get("runtime")))
-    table.add_row("Release", str(data.get("releaseDate", ""))[:10])
-    table.add_row("Genres", _format_genres(data.get("genres")))
-    table.add_row("Language", str(data.get("originalLanguage", "")))
-    table.add_row("IMDb", str(data.get("imdbId", "")))
-    table.add_row("TMDB", str(data.get("tmdbId", "")))
-
-    console.print(table)
-
-    # Overview/Plot
-    overview = data.get("overview")
-    if overview:
-        console.print()
-        console.print("[bold]Overview:[/bold]")
-        # Wrap text at ~80 chars
-        console.print(f"[dim]{overview}[/dim]", width=80)
+    render_movie_details(data)
 
 
 def display_showtimes_table(
