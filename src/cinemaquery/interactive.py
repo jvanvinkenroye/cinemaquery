@@ -60,32 +60,43 @@ def format_showtime_entry(showing: dict[str, Any]) -> str:
     return f"{time_str}  {name}  [{lang_info}]"
 
 
-def load_cinemas_with_progress(
+def _stream_with_progress(
     client: CineamoClient,
-    city: str | None = None,
-    movie_id: int | None = None,
-    limit: int = 200,
+    path: str,
+    description: str,
+    limit: int,
+    **params: Any,
 ) -> list[dict[str, Any]]:
-    """Load cinemas with a progress spinner."""
-    cinemas: list[dict[str, Any]] = []
-    params: dict[str, Any] = {}
-    if city:
-        params["city"] = city
-    if movie_id:
-        params["movieId"] = movie_id
-
+    """Stream items from path with a progress spinner, up to limit."""
+    items: list[dict[str, Any]] = []
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
         transient=True,
     ) as progress:
-        progress.add_task(description="Loading cinemas...", total=None)
-        for cinema in client.stream_all("/cinemas", per_page=50, **params):
-            cinemas.append(cinema)
-            if limit and len(cinemas) >= limit:
+        progress.add_task(description=description, total=None)
+        for item in client.stream_all(path, per_page=50, **params):
+            items.append(item)
+            if limit and len(items) >= limit:
                 break
-    return cinemas
+    return items
+
+
+def load_cinemas_with_progress(
+    client: CineamoClient,
+    city: str | None = None,
+    movie_id: int | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    params: dict[str, Any] = {}
+    if city:
+        params["city"] = city
+    if movie_id:
+        params["movieId"] = movie_id
+    return _stream_with_progress(
+        client, "/cinemas", "Loading cinemas...", limit, **params
+    )
 
 
 def load_movies_with_progress(
@@ -94,26 +105,11 @@ def load_movies_with_progress(
     cinema_id: int | None = None,
     limit: int = 200,
 ) -> list[dict[str, Any]]:
-    """Load movies with a progress spinner."""
-    movies: list[dict[str, Any]] = []
     params: dict[str, Any] = {}
     if query:
         params["query"] = query
-
     path = f"/cinemas/{cinema_id}/movies" if cinema_id else "/movies"
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True,
-    ) as progress:
-        progress.add_task(description="Loading movies...", total=None)
-        for movie in client.stream_all(path, per_page=50, **params):
-            movies.append(movie)
-            if limit and len(movies) >= limit:
-                break
-    return movies
+    return _stream_with_progress(client, path, "Loading movies...", limit, **params)
 
 
 def load_showtimes_with_progress(
@@ -122,30 +118,16 @@ def load_showtimes_with_progress(
     date: datetime,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    """Load showtimes for a specific cinema and date."""
-    showtimes: list[dict[str, Any]] = []
     start_datetime = date.replace(hour=0, minute=0, second=0, microsecond=0)
     end_datetime = start_datetime + timedelta(days=1)
-
     params: dict[str, Any] = {
         "cinemaIds[]": cinema_id,
         "startDatetime": start_datetime.isoformat().replace("+00:00", "Z"),
         "endDatetime": end_datetime.isoformat().replace("+00:00", "Z"),
     }
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True,
-    ) as progress:
-        progress.add_task(description="Loading showtimes...", total=None)
-        for showing in client.stream_all("/showings", per_page=50, **params):
-            showtimes.append(showing)
-            if limit and len(showtimes) >= limit:
-                break
-
-    # Sort by start time
+    showtimes = _stream_with_progress(
+        client, "/showings", "Loading showtimes...", limit, **params
+    )
     showtimes.sort(key=lambda s: s.get("startDatetime", ""))
     return showtimes
 

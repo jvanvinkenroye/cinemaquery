@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import os
 import sys
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, cast
+from typing import Any, ParamSpec, TypeVar, cast
 
 import click
 import httpx
@@ -20,6 +22,7 @@ else:
     import tomli as tomllib
 
 from .client import CineamoClient
+from .formatters import output_cinemas, output_movies
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -35,10 +38,15 @@ def _http_error_message(status_code: int) -> str:
     return f"API returned {status_code}"
 
 
-def handle_api_errors(func):  # type: ignore[no-untyped-def]
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+def handle_api_errors(func: Callable[_P, _R]) -> Callable[_P, _R]:
     """Decorator to handle API errors with user-friendly messages."""
 
-    def wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]
+    @functools.wraps(func)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
         ctx = click.get_current_context()
         verbose = ctx.obj.get("verbose", False) if ctx.obj else False
 
@@ -165,77 +173,29 @@ def list_cinemas(
 ) -> None:
     """List cinemas with optional filters."""
     client: CineamoClient = ctx.obj["client"]
-    params: dict[str, Any] = {"per_page": per_page, "page": page}
+    filter_params: dict[str, Any] = {}
     if city:
-        params["city"] = city
+        filter_params["city"] = city
+
     if list_all:
-        count = 0
-        rows = []
-        _ps = dict(params)
-        _ps.pop("per_page", None)
-        _ps.pop("page", None)
-        for c in client.stream_all("/cinemas", per_page=per_page, **_ps):
-            rows.append(
-                (
-                    str(c.get("id", "")),
-                    str(c.get("name", "")),
-                    str(c.get("city", "")),
-                    str(c.get("countryCode", "")),
-                )
-            )
-            count += 1
-            if limit and count >= limit:
+        items: list[dict[str, Any]] = []
+        for c in client.stream_all("/cinemas", per_page=per_page, **filter_params):
+            items.append(c)
+            if limit and len(items) >= limit:
                 break
-        if fmt.lower() == "json":
-            click.echo(
-                json.dumps(
-                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
-                )
-            )
-            return
-        table = Table(
-            title=f"Cinemas (total {count})",
-            header_style="bold cyan",
-            show_lines=False,
-        )
-        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-        table.add_column("Name", style="bold")
-        table.add_column("City", style="green")
-        table.add_column("Country", style="yellow")
-        for r in rows:
-            table.add_row(*r)
-        console.print(table)
+        output_cinemas(items, f"Cinemas (total {len(items)})", fmt, total=len(items))
         return
 
-    result = client.list_paginated("/cinemas", **params)
-    if fmt.lower() == "json":
-        click.echo(
-            json.dumps(
-                {
-                    "items": result.items,
-                    "page": result.page,
-                    "total": result.total_items,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        return
-    table = Table(
-        title=f"Cinemas page {result.page}", header_style="bold cyan", show_lines=False
+    result = client.list_paginated(
+        "/cinemas", per_page=per_page, page=page, **filter_params
     )
-    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-    table.add_column("Name", style="bold")
-    table.add_column("City", style="green")
-    table.add_column("Country", style="yellow")
-    for c in result.items:
-        table.add_row(
-            str(c.get("id", "")),
-            str(c.get("name", "")),
-            str(c.get("city", "")),
-            str(c.get("countryCode", "")),
-        )
-    console.print(table)
+    output_cinemas(
+        result.items,
+        f"Cinemas page {result.page}",
+        fmt,
+        page=result.page,
+        total=result.total_items,
+    )
 
 
 @main.command("cinema")
@@ -302,83 +262,34 @@ def cinemas_near(
 ) -> None:
     """Search cinemas nearby coordinates."""
     client: CineamoClient = ctx.obj["client"]
-    params = {
-        "latitude": lat,
-        "longitude": lon,
-        "distance": distance,
-        "per_page": per_page,
-        "page": page,
+    geo_params: dict[str, Any] = {
+        "latitude": lat, "longitude": lon, "distance": distance
     }
+
     if list_all:
-        count = 0
-        rows: list[tuple[str, str, str, str]] = []
-        _ps = dict(params)
-        _ps.pop("per_page", None)
-        _ps.pop("page", None)
-        for c in client.stream_all("/cinemas", per_page=per_page, **_ps):
-            rows.append(
-                (
-                    str(c.get("id", "")),
-                    str(c.get("name", "")),
-                    str(c.get("city", "")),
-                    str(c.get("countryCode", "")),
-                )
-            )
-            count += 1
-            if limit and count >= limit:
+        items: list[dict[str, Any]] = []
+        for c in client.stream_all("/cinemas", per_page=per_page, **geo_params):
+            items.append(c)
+            if limit and len(items) >= limit:
                 break
-        if fmt.lower() == "json":
-            click.echo(
-                json.dumps(
-                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
-                )
-            )
-            return
-        table = Table(
-            title=f"Cinemas near ({lat},{lon}) total {count}",
-            header_style="bold cyan",
-            show_lines=False,
+        output_cinemas(
+            items,
+            f"Cinemas near ({lat},{lon}) total {len(items)}",
+            fmt,
+            total=len(items),
         )
-        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-        table.add_column("Name", style="bold")
-        table.add_column("City", style="green")
-        table.add_column("Country", style="yellow")
-        for r in rows:
-            table.add_row(*r)
-        console.print(table)
         return
 
-    result = client.list_paginated("/cinemas", **params)
-    if fmt.lower() == "json":
-        click.echo(
-            json.dumps(
-                {
-                    "items": result.items,
-                    "page": result.page,
-                    "total": result.total_items,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        return
-    table = Table(
-        title=f"Cinemas near ({lat},{lon}) page {result.page}",
-        header_style="bold cyan",
-        show_lines=False,
+    result = client.list_paginated(
+        "/cinemas", per_page=per_page, page=page, **geo_params
     )
-    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-    table.add_column("Name", style="bold")
-    table.add_column("City", style="green")
-    table.add_column("Country", style="yellow")
-    for c in result.items:
-        table.add_row(
-            str(c.get("id", "")),
-            str(c.get("name", "")),
-            str(c.get("city", "")),
-            str(c.get("countryCode", "")),
-        )
-    console.print(table)
+    output_cinemas(
+        result.items,
+        f"Cinemas near ({lat},{lon}) page {result.page}",
+        fmt,
+        page=result.page,
+        total=result.total_items,
+    )
 
 
 @main.command("movies")
@@ -414,77 +325,29 @@ def list_movies(
 ) -> None:
     """List movies with optional query."""
     client: CineamoClient = ctx.obj["client"]
-    params: dict[str, Any] = {"per_page": per_page, "page": page}
+    filter_params: dict[str, Any] = {}
     if query:
-        params["query"] = query
+        filter_params["query"] = query
+
     if list_all:
-        count = 0
-        rows = []
-        _ps = dict(params)
-        _ps.pop("per_page", None)
-        _ps.pop("page", None)
-        for m in client.stream_all("/movies", per_page=per_page, **_ps):
-            rows.append(
-                (
-                    str(m.get("id", "")),
-                    str(m.get("title", "")),
-                    str(m.get("releaseDate", "")),
-                    str(m.get("region", "")),
-                )
-            )
-            count += 1
-            if limit and count >= limit:
+        items: list[dict[str, Any]] = []
+        for m in client.stream_all("/movies", per_page=per_page, **filter_params):
+            items.append(m)
+            if limit and len(items) >= limit:
                 break
-        if fmt.lower() == "json":
-            click.echo(
-                json.dumps(
-                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
-                )
-            )
-            return
-        table = Table(
-            title=f"Movies (total {count})",
-            header_style="bold cyan",
-            show_lines=False,
-        )
-        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-        table.add_column("Title", style="bold")
-        table.add_column("Release", style="green")
-        table.add_column("Region", style="yellow")
-        for r in rows:
-            table.add_row(*r)
-        console.print(table)
+        output_movies(items, f"Movies (total {len(items)})", fmt, total=len(items))
         return
 
-    result = client.list_paginated("/movies", **params)
-    if fmt.lower() == "json":
-        click.echo(
-            json.dumps(
-                {
-                    "items": result.items,
-                    "page": result.page,
-                    "total": result.total_items,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        return
-    table = Table(
-        title=f"Movies page {result.page}", header_style="bold cyan", show_lines=False
+    result = client.list_paginated(
+        "/movies", per_page=per_page, page=page, **filter_params
     )
-    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-    table.add_column("Title", style="bold")
-    table.add_column("Release", style="green")
-    table.add_column("Region", style="yellow")
-    for m in result.items:
-        table.add_row(
-            str(m.get("id", "")),
-            str(m.get("title", "")),
-            str(m.get("releaseDate", "")),
-            str(m.get("region", "")),
-        )
-    console.print(table)
+    output_movies(
+        result.items,
+        f"Movies page {result.page}",
+        fmt,
+        page=result.page,
+        total=result.total_items,
+    )
 
 
 @main.command("cinema-movies")
@@ -525,82 +388,36 @@ def cinema_movies(
     """List movies for a given cinema."""
     client: CineamoClient = ctx.obj["client"]
     path = f"/cinemas/{cinema_id}/movies"
-    params: dict[str, str | int] = {"per_page": per_page, "page": page}
+    filter_params: dict[str, Any] = {}
     if query:
-        params["query"] = query
+        filter_params["query"] = query
     if region:
-        params["region"] = region
+        filter_params["region"] = region
 
     if list_all:
-        count = 0
-        rows: list[tuple[str, str, str, str]] = []
-        _ps = dict(params)
-        _ps.pop("per_page", None)
-        _ps.pop("page", None)
-        for m in client.stream_all(path, per_page=per_page, **_ps):
-            rows.append(
-                (
-                    str(m.get("id", "")),
-                    str(m.get("title", "")),
-                    str(m.get("releaseDate", "")),
-                    str(m.get("region", "")),
-                )
-            )
-            count += 1
-            if limit and count >= limit:
+        items: list[dict[str, Any]] = []
+        for m in client.stream_all(path, per_page=per_page, **filter_params):
+            items.append(m)
+            if limit and len(items) >= limit:
                 break
-        if fmt.lower() == "json":
-            click.echo(
-                json.dumps(
-                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
-                )
-            )
-            return
-        table = Table(
-            title=f"Cinema {cinema_id} movies (total {count})",
-            header_style="bold cyan",
-            show_lines=False,
+        output_movies(
+            items,
+            f"Cinema {cinema_id} movies (total {len(items)})",
+            fmt,
+            total=len(items),
         )
-        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-        table.add_column("Title", style="bold")
-        table.add_column("Release", style="green")
-        table.add_column("Region", style="yellow")
-        for r in rows:
-            table.add_row(*r)
-        console.print(table)
         return
 
-    result = client.list_paginated(path, **params)
-    if fmt.lower() == "json":
-        click.echo(
-            json.dumps(
-                {
-                    "items": result.items,
-                    "page": result.page,
-                    "total": result.total_items,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        return
-    table = Table(
-        title=f"Cinema {cinema_id} movies page {result.page}",
-        header_style="bold cyan",
-        show_lines=False,
+    result = client.list_paginated(
+        path, per_page=per_page, page=page, **filter_params
     )
-    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-    table.add_column("Title", style="bold")
-    table.add_column("Release", style="green")
-    table.add_column("Region", style="yellow")
-    for m in result.items:
-        table.add_row(
-            str(m.get("id", "")),
-            str(m.get("title", "")),
-            str(m.get("releaseDate", "")),
-            str(m.get("region", "")),
-        )
-    console.print(table)
+    output_movies(
+        result.items,
+        f"Cinema {cinema_id} movies page {result.page}",
+        fmt,
+        page=result.page,
+        total=result.total_items,
+    )
 
 
 def _to_api_dt(dt: datetime) -> str:
@@ -805,88 +622,39 @@ def movies_search(
 ) -> None:
     """Search movies with advanced filters."""
     client: CineamoClient = ctx.obj["client"]
-    params: dict[str, str | int] = {"per_page": per_page, "page": page}
+    filter_params: dict[str, Any] = {}
     if query:
-        params["query"] = query
+        filter_params["query"] = query
     if region:
-        params["region"] = region
+        filter_params["region"] = region
     if release_date_start:
-        params["releaseDateStart"] = release_date_start
+        filter_params["releaseDateStart"] = release_date_start
     if release_date_end:
-        params["releaseDateEnd"] = release_date_end
+        filter_params["releaseDateEnd"] = release_date_end
     if movie_type:
-        params["type"] = movie_type
+        filter_params["type"] = movie_type
 
     if list_all:
-        count = 0
-        rows: list[tuple[str, str, str, str]] = []
-        _ps = dict(params)
-        _ps.pop("per_page", None)
-        _ps.pop("page", None)
-        for m in client.stream_all("/movies", per_page=per_page, **_ps):
-            rows.append(
-                (
-                    str(m.get("id", "")),
-                    str(m.get("title", "")),
-                    str(m.get("releaseDate", "")),
-                    str(m.get("region", "")),
-                )
-            )
-            count += 1
-            if limit and count >= limit:
+        items: list[dict[str, Any]] = []
+        for m in client.stream_all("/movies", per_page=per_page, **filter_params):
+            items.append(m)
+            if limit and len(items) >= limit:
                 break
-        if fmt.lower() == "json":
-            click.echo(
-                json.dumps(
-                    {"items": rows, "total": count}, ensure_ascii=False, indent=2
-                )
-            )
-            return
-        table = Table(
-            title=f"Movies search (total {count})",
-            header_style="bold cyan",
-            show_lines=False,
+        output_movies(
+            items, f"Movies search (total {len(items)})", fmt, total=len(items)
         )
-        table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-        table.add_column("Title", style="bold")
-        table.add_column("Release", style="green")
-        table.add_column("Region", style="yellow")
-        for r in rows:
-            table.add_row(*r)
-        console.print(table)
         return
 
-    result = client.list_paginated("/movies", **params)
-    if fmt.lower() == "json":
-        click.echo(
-            json.dumps(
-                {
-                    "items": result.items,
-                    "page": result.page,
-                    "total": result.total_items,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        return
-    table = Table(
-        title=f"Movies search page {result.page}",
-        header_style="bold cyan",
-        show_lines=False,
+    result = client.list_paginated(
+        "/movies", per_page=per_page, page=page, **filter_params
     )
-    table.add_column("ID", justify="right", style="magenta", no_wrap=True)
-    table.add_column("Title", style="bold")
-    table.add_column("Release", style="green")
-    table.add_column("Region", style="yellow")
-    for m in result.items:
-        table.add_row(
-            str(m.get("id", "")),
-            str(m.get("title", "")),
-            str(m.get("releaseDate", "")),
-            str(m.get("region", "")),
-        )
-    console.print(table)
+    output_movies(
+        result.items,
+        f"Movies search page {result.page}",
+        fmt,
+        page=result.page,
+        total=result.total_items,
+    )
 
 
 @main.command("movie")
